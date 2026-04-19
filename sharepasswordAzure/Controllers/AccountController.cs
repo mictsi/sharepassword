@@ -181,17 +181,17 @@ public class AccountController : Controller
 
     private static bool VerifyPassword(string password, AdminAuthOptions options)
     {
-        if (!string.IsNullOrWhiteSpace(options.Password))
+        if (!string.IsNullOrWhiteSpace(options.PasswordHash))
         {
-            return string.Equals(password, options.Password, StringComparison.Ordinal);
+            return VerifyPbkdf2Hash(password, options.PasswordHash);
         }
 
-        if (string.IsNullOrWhiteSpace(options.PasswordHash))
+        if (string.IsNullOrWhiteSpace(options.Password))
         {
             return false;
         }
 
-        return VerifyPbkdf2Hash(password, options.PasswordHash);
+        return string.Equals(password, options.Password, StringComparison.Ordinal);
     }
 
     private static bool VerifyPbkdf2Hash(string password, string passwordHash)

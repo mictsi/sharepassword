@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -67,6 +68,39 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         Assert.False(string.IsNullOrWhiteSpace(authCookie));
         Assert.DoesNotContain("expires=", authCookie!, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("max-age=", authCookie!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AdminLogin_WithPasswordHashOnly_Succeeds()
+    {
+        var passwordHash = CreateAdminPasswordHash("admin123!ChangeMe");
+
+        await using var factory = new HashOnlyAdminWebApplicationFactory(passwordHash);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = true,
+            AllowAutoRedirect = false
+        });
+
+        var loginPage = await client.GetAsync("/account/login");
+        var loginHtml = await loginPage.Content.ReadAsStringAsync();
+        var antiForgery = ExtractAntiForgeryToken(loginHtml);
+
+        var loginRequest = new HttpRequestMessage(HttpMethod.Post, "/account/login")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = antiForgery,
+                ["Username"] = "admin",
+                ["Password"] = "admin123!ChangeMe"
+            })
+        };
+
+        loginRequest.Headers.Referrer = new Uri("https://localhost/account/login");
+        var loginResponse = await client.SendAsync(loginRequest);
+
+        Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
     }
 
     [Fact]
@@ -365,6 +399,15 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
 
         return match.Groups["id"].Value;
     }
+
+    private static string CreateAdminPasswordHash(string password, int iterations = 210_000)
+    {
+        byte[] salt = new byte[16];
+        RandomNumberGenerator.Fill(salt);
+
+        var hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, 32);
+        return $"PBKDF2$SHA256${iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+    }
 }
 
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
@@ -380,6 +423,49 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 ["SqliteStorage:ApplyMigrationsOnStartup"] = "true",
                 ["AdminAuth:Username"] = "admin",
                 ["AdminAuth:Password"] = "admin123!ChangeMe",
+                ["AdminAuth:PasswordHash"] = string.Empty,
+                ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
+                ["Share:CleanupIntervalSeconds"] = "3600"
+            };
+
+            config.AddInMemoryCollection(overrides);
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IShareStore>();
+            services.RemoveAll<IAuditLogSink>();
+            services.RemoveAll<IAuditLogReader>();
+
+            services.AddSingleton<IShareStore, InMemoryShareStore>();
+            services.AddSingleton<InMemoryAuditStore>();
+            services.AddSingleton<IAuditLogSink>(provider => provider.GetRequiredService<InMemoryAuditStore>());
+            services.AddSingleton<IAuditLogReader>(provider => provider.GetRequiredService<InMemoryAuditStore>());
+        });
+    }
+}
+
+internal sealed class HashOnlyAdminWebApplicationFactory : WebApplicationFactory<Program>
+{
+    private readonly string _passwordHash;
+
+    public HashOnlyAdminWebApplicationFactory(string passwordHash)
+    {
+        _passwordHash = passwordHash;
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            var overrides = new Dictionary<string, string?>
+            {
+                ["Storage:Backend"] = "sqlite",
+                ["SqliteStorage:ConnectionString"] = "Data Source=testwebfactory-hash;Mode=Memory;Cache=Shared",
+                ["SqliteStorage:ApplyMigrationsOnStartup"] = "true",
+                ["AdminAuth:Username"] = "admin",
+                ["AdminAuth:Password"] = string.Empty,
+                ["AdminAuth:PasswordHash"] = _passwordHash,
                 ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
                 ["Share:CleanupIntervalSeconds"] = "3600"
             };
@@ -418,6 +504,7 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
                 ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath}",
                 ["AdminAuth:Username"] = "admin",
                 ["AdminAuth:Password"] = "admin123!ChangeMe",
+                ["AdminAuth:PasswordHash"] = string.Empty,
                 ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
                 ["Share:CleanupIntervalSeconds"] = "3600",
                 ["OidcAuth:Enabled"] = "false"

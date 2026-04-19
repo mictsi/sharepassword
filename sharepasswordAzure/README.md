@@ -70,8 +70,8 @@ Production hardening guide: `sharepasswordAzure/CONFIGURATION.md`
 - `AzureStorage:KeyVault:*`: Azure Key Vault settings used when `Storage:Backend=azure`.
 - `AzureStorage:TableAudit:*`: Azure Table Storage audit settings used when `Storage:Backend=azure`.
 - `AdminAuth:Username`: local admin username.
-- `AdminAuth:Password`: local admin password.
-- `AdminAuth:PasswordHash`: optional PBKDF2-SHA256 admin password hash.
+- `AdminAuth:Password`: optional plaintext fallback admin password.
+- `AdminAuth:PasswordHash`: preferred PBKDF2-SHA256 admin password hash. When both are set, `PasswordHash` is used.
 - `OidcAuth:Enabled`: enable OIDC as alternative admin login.
 - `OidcAuth:Authority`: OIDC authority/issuer URL.
 - `OidcAuth:ClientId`: OIDC client ID.
@@ -94,6 +94,39 @@ Production hardening guide: `sharepasswordAzure/CONFIGURATION.md`
 - `Logging:LogLevel:*`: standard ASP.NET logging levels.
 - `AllowedHosts`: allowed hostnames.
 
+### Generate an admin password hash
+
+The app accepts admin password hashes in this format:
+
+```text
+PBKDF2$SHA256$<iterations>$<salt-base64>$<hash-base64>
+```
+
+Generate a new hash from the repository root with the included PowerShell script:
+
+```powershell
+./scripts/new-admin-password-hash.ps1
+```
+
+The script prompts for the password and prints a value you can paste into `AdminAuth:PasswordHash`.
+
+If you need to pass the password non-interactively:
+
+```powershell
+./scripts/new-admin-password-hash.ps1 -Password "use-a-long-random-password"
+```
+
+Update your config to use the generated hash:
+
+```json
+"AdminAuth": {
+  "Username": "admin",
+  "PasswordHash": "PBKDF2$SHA256$210000$<salt>$<hash>"
+}
+```
+
+If you are migrating from a plaintext admin password, remove `AdminAuth:Password` after you add `AdminAuth:PasswordHash` so the secret is no longer stored in plaintext.
+
 ### Using Storage Backends
 
 For SQLite, SQL Server, or PostgreSQL:
@@ -110,7 +143,7 @@ For Azure:
 
 In all cases:
 
-1. Change `AdminAuth` credentials and `Encryption:Passphrase`.
+1. Change `AdminAuth:Username`, configure either `AdminAuth:PasswordHash` or `AdminAuth:Password`, and change `Encryption:Passphrase`.
 2. Start the app.
 
 ### OIDC login (alternative to local login)
@@ -139,8 +172,8 @@ Examples:
 - `AzureStorage__KeyVault__VaultUri=https://myvault.vault.azure.net/`
 - `AzureStorage__TableAudit__ServiceSasUrl=<table-service-sas-url>`
 - `AdminAuth__Username=admin`
-- `AdminAuth__Password=<strong-password>`
 - `AdminAuth__PasswordHash=<pbkdf2-hash>`
+- `AdminAuth__Password=<strong-password>`
 - `Encryption__Passphrase=<long-random-passphrase>`
 - `OidcAuth__Enabled=true`
 - `OidcAuth__Authority=https://login.microsoftonline.com/<tenant-id>/v2.0`

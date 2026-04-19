@@ -33,6 +33,18 @@ For full configuration and usage instructions, see:
 - [sharepasswordAzure/README.md](sharepasswordAzure/README.md)
 - [sharepasswordAzure/CONFIGURATION.md](sharepasswordAzure/CONFIGURATION.md)
 
+## Admin password hash
+
+Generate a PBKDF2-SHA256 admin password hash from the repository root with:
+
+```powershell
+./scripts/new-admin-password-hash.ps1
+```
+
+Paste the output into `AdminAuth:PasswordHash`. If you are switching from a plaintext admin password, remove `AdminAuth:Password` after you add the hash.
+
+The full admin authentication configuration is documented in `sharepasswordAzure/README.md`.
+
 ## Azure provisioning script
 
 A helper script is available at `scripts/provision-azure.ps1` to create required Azure resources for this app:
@@ -84,9 +96,7 @@ The script prints the deployed app URL and Azure Portal URL on success.
 
 - Added `Instructions` field for password shares with multiline formatting support and `1000` character limit.
 - Updated share retrieval view to show both `Secret text` and `Instructions` preserving formatting.
-- Added sharing guidance on the "Password Share Created" page:
-    - Send recipient, link, and expiration time by email.
-    - Send access code via SMS to recipient mobile phone.
+- Added sharing guidance on the "Password Share Created" page for sending the recipient, link, and expiration time by email and the access code by SMS.
 - Hardened user input validation for token, access code, recipient email, and username lengths/formats.
 
 ## Flowdiagram
