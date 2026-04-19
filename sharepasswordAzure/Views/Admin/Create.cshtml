@@ -5,6 +5,7 @@
 
 <h2>Create Password Share</h2>
 <p>Provide recipient email, username, secret text, instructions, and expiry time.</p>
+<p class="text-muted">Configured timezone: <strong>@ApplicationTime.TimeZoneId</strong>. Current application time: <strong>@ApplicationTime.Now.ToString("yyyy-MM-dd HH:mm:ss zzz")</strong>.</p>
 
 <form asp-action="Create" method="post">
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>

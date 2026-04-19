@@ -37,6 +37,7 @@ param(
 	[string]$Runtime = "DOTNETCORE:10.0",
 	[string]$AppEnvironment = "Production",
 	[string]$ApplicationPathBase = "/",
+	[string]$ApplicationTimeZoneId = "UTC",
 	[int]$AuthenticationSessionTimeoutMinutes = 60,
 	[bool]$AuthenticationSlidingExpiration = $true,
 
@@ -162,6 +163,7 @@ if (-not [string]::IsNullOrWhiteSpace($SettingsFile) -and (Test-Path $SettingsFi
 	if (-not $PSBoundParameters.ContainsKey("ShareDefaultExpiryHours")) { $ShareDefaultExpiryHours = [int]$settingsJson.Share.DefaultExpiryHours }
 	if (-not $PSBoundParameters.ContainsKey("ShareCleanupIntervalSeconds")) { $ShareCleanupIntervalSeconds = [int]$settingsJson.Share.CleanupIntervalSeconds }
 	if (-not $PSBoundParameters.ContainsKey("EnableHttpsRedirection")) { $EnableHttpsRedirection = [bool]$settingsJson.Application.EnableHttpsRedirection }
+	if (-not $PSBoundParameters.ContainsKey("ApplicationTimeZoneId") -and $settingsJson.Application.TimeZoneId) { $ApplicationTimeZoneId = [string]$settingsJson.Application.TimeZoneId }
 	if (-not $PSBoundParameters.ContainsKey("ConsoleAuditLoggingEnabled")) { $ConsoleAuditLoggingEnabled = [bool]$settingsJson.ConsoleAuditLogging.Enabled }
 	if (-not $PSBoundParameters.ContainsKey("ConsoleAuditLoggingLevel")) { $ConsoleAuditLoggingLevel = [string]$settingsJson.ConsoleAuditLogging.Level }
 	if (-not $PSBoundParameters.ContainsKey("LoggingDefaultLevel") -and $settingsJson.Logging.LogLevel.Default) { $LoggingDefaultLevel = [string]$settingsJson.Logging.LogLevel.Default }
@@ -300,6 +302,7 @@ $settings = @(
 	"Application__EnableHttpsRedirection=$httpsRedirectionValue",
 	"Application__Name=sharepasswordAzure",
 	"Application__PathBase=$ApplicationPathBase",
+	"Application__TimeZoneId=$ApplicationTimeZoneId",
 	"Application__AuthenticationSessionTimeoutMinutes=$AuthenticationSessionTimeoutMinutes",
 	"Application__AuthenticationSlidingExpiration=$authenticationSlidingExpirationValue",
 	"Kestrel__Endpoints__Http__Url=http://+:8080",

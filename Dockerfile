@@ -15,6 +15,7 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 	ASPNETCORE_ENVIRONMENT=Production \
 	Application__EnableHttpsRedirection=false \
 	Application__PathBase=/ \
+	Application__TimeZoneId=UTC \
 	Application__AuthenticationSessionTimeoutMinutes=60 \
 	Application__AuthenticationSlidingExpiration=true \
 	Kestrel__Endpoints__Http__Url=http://+:8080 \

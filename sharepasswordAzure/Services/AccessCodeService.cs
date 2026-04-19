@@ -5,16 +5,14 @@ namespace SharePassword.Services;
 
 public class AccessCodeService : IAccessCodeService
 {
-    private const string Alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
     public string GenerateCode()
     {
-        var bytes = RandomNumberGenerator.GetBytes(8);
-        var chars = new char[8];
+        var bytes = RandomNumberGenerator.GetBytes(AccessCodeFormat.Length);
+        var chars = new char[AccessCodeFormat.Length];
 
         for (var i = 0; i < chars.Length; i++)
         {
-            chars[i] = Alphabet[bytes[i] % Alphabet.Length];
+            chars[i] = AccessCodeFormat.Alphabet[bytes[i] % AccessCodeFormat.Alphabet.Length];
         }
 
         return new string(chars);

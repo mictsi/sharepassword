@@ -11,12 +11,11 @@ namespace SharePassword.Controllers;
 
 public class ShareController : Controller
 {
-    private const int AccessCodeLength = 8;
-
     private readonly IShareStore _shareStore;
     private readonly IAccessCodeService _accessCodeService;
     private readonly IPasswordCryptoService _passwordCryptoService;
     private readonly IAuditLogger _auditLogger;
+    private readonly IApplicationTime _applicationTime;
     private readonly OidcAuthOptions _oidcAuthOptions;
 
     public ShareController(
@@ -24,12 +23,14 @@ public class ShareController : Controller
         IAccessCodeService accessCodeService,
         IPasswordCryptoService passwordCryptoService,
         IAuditLogger auditLogger,
+        IApplicationTime applicationTime,
         IOptions<OidcAuthOptions> oidcAuthOptions)
     {
         _shareStore = shareStore;
         _accessCodeService = accessCodeService;
         _passwordCryptoService = passwordCryptoService;
         _auditLogger = auditLogger;
+        _applicationTime = applicationTime;
         _oidcAuthOptions = oidcAuthOptions.Value;
     }
 
@@ -84,16 +85,16 @@ public class ShareController : Controller
     public async Task<IActionResult> Access(ShareAccessViewModel model)
     {
         model.Token = (model.Token ?? string.Empty).Trim();
-        model.Code = (model.Code ?? string.Empty).Trim().ToUpperInvariant();
+        model.Code = (model.Code ?? string.Empty).Trim();
 
         if (!IsValidToken(model.Token))
         {
             return BadRequest();
         }
 
-        if (model.Code.Length != AccessCodeLength || !model.Code.All(char.IsLetterOrDigit))
+        if (!AccessCodeFormat.IsValid(model.Code))
         {
-            ModelState.AddModelError(nameof(model.Code), "Access code format is invalid.");
+            ModelState.AddModelError(nameof(model.Code), AccessCodeFormat.InvalidFormatErrorMessage);
         }
 
         var share = await _shareStore.GetShareByTokenAsync(model.Token);
@@ -151,7 +152,7 @@ public class ShareController : Controller
             return View(model);
         }
 
-        if (share.ExpiresAtUtc <= DateTime.UtcNow)
+        if (share.ExpiresAtUtc <= _applicationTime.UtcNow)
         {
             await _shareStore.DeleteShareAsync(share.Id);
 
@@ -174,7 +175,7 @@ public class ShareController : Controller
             return View(model);
         }
 
-        share.LastAccessedAtUtc = DateTime.UtcNow;
+        share.LastAccessedAtUtc = _applicationTime.UtcNow;
         await _shareStore.UpsertShareAsync(share);
 
         await _auditLogger.LogAsync("external-user", email, "share.access", true, "PasswordShare", share.Id.ToString());

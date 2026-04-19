@@ -49,6 +49,13 @@ Examples:
 - Root deployment: `"PathBase": "/"`
 - Subpath deployment: `"PathBase": "/sharepassword"`
 
+Configure `Application:TimeZoneId` if admin and recipient pages should display times in a specific timezone instead of `UTC`.
+
+Examples:
+
+- IANA: `"TimeZoneId": "Europe/Stockholm"`
+- Windows: `"TimeZoneId": "W. Europe Standard Time"`
+
 Authentication cookies remain session-only, so closing the browser ends the session. The default idle timeout is 60 minutes and can be configured with:
 
 - `Application:AuthenticationSessionTimeoutMinutes`
@@ -159,7 +166,8 @@ Create environment-specific config (for example `appsettings.Production.json`):
 ```json
 {
   "Application": {
-    "EnableHttpsRedirection": true
+    "EnableHttpsRedirection": true,
+    "TimeZoneId": "UTC"
   },
   "Kestrel": {
     "Endpoints": {

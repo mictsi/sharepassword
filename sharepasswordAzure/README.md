@@ -60,6 +60,7 @@ Production hardening guide: `sharepasswordAzure/CONFIGURATION.md`
 - `Application:Name`: app name shown in config/operations.
 - `Application:EnableHttpsRedirection`: set `true` when HTTPS endpoint/certificate is configured.
 - `Application:PathBase`: base path when the app is published under a sub-URI (default `/`).
+- `Application:TimeZoneId`: timezone used for displayed/admin-facing times. Accepts Windows or IANA IDs, default `UTC`.
 - `Application:AuthenticationSessionTimeoutMinutes`: idle timeout for the authentication session cookie (default `60`).
 - `Application:AuthenticationSlidingExpiration`: when `true`, refreshes the session timeout while the user remains active.
 - `Kestrel:Endpoints:Http:Url`: HTTP host+port (example: `http://0.0.0.0:5099`).
@@ -147,8 +148,16 @@ In all cases:
 
 1. Change `AdminAuth:Username`, configure `AdminAuth:PasswordHash`, and change `Encryption:Passphrase`.
 2. If the app is published below the site root, set `Application:PathBase` to that subpath such as `/sharepassword`.
-3. Adjust `Application:AuthenticationSessionTimeoutMinutes` and `Application:AuthenticationSlidingExpiration` if the default 60-minute session policy is not what you want.
-4. Start the app.
+3. Set `Application:TimeZoneId` if admin-facing times should use a timezone other than `UTC`, for example `Europe/Stockholm` or `W. Europe Standard Time`.
+4. Adjust `Application:AuthenticationSessionTimeoutMinutes` and `Application:AuthenticationSlidingExpiration` if the default 60-minute session policy is not what you want.
+5. Start the app.
+
+Timezone examples for `Application:TimeZoneId`:
+
+- Stockholm: `Europe/Stockholm` or `W. Europe Standard Time`
+- London: `Europe/London` or `GMT Standard Time`
+- San Francisco: `America/Los_Angeles` or `Pacific Standard Time`
+- Tokyo: `Asia/Tokyo` or `Tokyo Standard Time`
 
 ### OIDC login (alternative to local login)
 
@@ -169,6 +178,7 @@ Examples:
 
 - `Kestrel__Endpoints__Https__Url=https://localhost:7099`
 - `Application__PathBase=/`
+- `Application__TimeZoneId=UTC`
 - `Application__AuthenticationSessionTimeoutMinutes=60`
 - `Application__AuthenticationSlidingExpiration=true`
 - `Storage__Backend=sqlite`
@@ -205,7 +215,7 @@ For array values (for example scopes), use indexed variables:
 1. Open `/account/login` and sign in as admin.
 2. Create share with recipient email + username + secret text + instructions + expiry.
 3. Send recipient email, unique link, and expiration time by email.
-4. Send the one-time access code separately via SMS to recipient mobile phone.
+4. Send the 10-character one-time access code separately via SMS to recipient mobile phone.
 5. Recipient opens the link and submits email + code to view credentials, secret text, and instructions.
 6. Share is removed automatically after expiration.
 
@@ -220,6 +230,12 @@ Instructions notes:
 - Max length is `1000` characters.
 - Multiline content is supported.
 - Plain text formatting and line breaks are preserved end-to-end.
+
+Access code notes:
+
+- Access codes are exactly `10` characters long.
+- Allowed characters are uppercase letters, lowercase letters, numbers, `#`, and `-`.
+- Access codes are case-sensitive.
 
 ## Audit logs
 

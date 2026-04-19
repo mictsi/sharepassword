@@ -7,17 +7,20 @@ public class ExpiredShareCleanupService : BackgroundService
 {
     private readonly IShareStore _shareStore;
     private readonly IAuditLogger _auditLogger;
+    private readonly IApplicationTime _applicationTime;
     private readonly ILogger<ExpiredShareCleanupService> _logger;
     private readonly ShareOptions _shareOptions;
 
     public ExpiredShareCleanupService(
         IShareStore shareStore,
         IAuditLogger auditLogger,
+        IApplicationTime applicationTime,
         IOptions<ShareOptions> options,
         ILogger<ExpiredShareCleanupService> logger)
     {
         _shareStore = shareStore;
         _auditLogger = auditLogger;
+        _applicationTime = applicationTime;
         _logger = logger;
         _shareOptions = options.Value;
     }
@@ -30,7 +33,7 @@ public class ExpiredShareCleanupService : BackgroundService
         {
             try
             {
-                var deletedCount = await _shareStore.DeleteExpiredSharesAsync(DateTime.UtcNow, stoppingToken);
+                var deletedCount = await _shareStore.DeleteExpiredSharesAsync(_applicationTime.UtcNow, stoppingToken);
 
                 if (deletedCount > 0)
                 {

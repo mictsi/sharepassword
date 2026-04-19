@@ -18,6 +18,9 @@ builder.Services
         options => ApplicationOptions.IsValidPathBase(options.PathBase),
         "Application:PathBase must be '/' or a relative path like '/sharepassword'.")
     .Validate(
+        options => ApplicationOptions.IsValidTimeZoneId(options.TimeZoneId),
+        "Application:TimeZoneId must be a valid Windows or IANA time zone ID available on the host.")
+    .Validate(
         options => options.AuthenticationSessionTimeoutMinutes > 0,
         "Application:AuthenticationSessionTimeoutMinutes must be greater than 0.")
     .ValidateOnStart();
@@ -47,6 +50,7 @@ builder.Services
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHealthChecks();
+builder.Services.AddSingleton<IApplicationTime, ApplicationTime>();
 builder.Services.AddConfiguredStorageBackend(builder.Configuration);
 
 var oidcOptions = builder.Configuration.GetSection(OidcAuthOptions.SectionName).Get<OidcAuthOptions>() ?? new OidcAuthOptions();

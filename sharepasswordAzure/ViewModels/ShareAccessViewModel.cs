@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using SharePassword.Services;
 
 namespace SharePassword.ViewModels;
 
@@ -10,8 +11,8 @@ public class ShareAccessViewModel
     public string Email { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(8, MinimumLength = 8, ErrorMessage = "Access code must be exactly 8 characters.")]
-    [RegularExpression("^[A-Za-z0-9]{8}$", ErrorMessage = "Access code format is invalid.")]
+    [StringLength(AccessCodeFormat.Length, MinimumLength = AccessCodeFormat.Length, ErrorMessage = AccessCodeFormat.LengthErrorMessage)]
+    [RegularExpression(AccessCodeFormat.ValidationPattern, ErrorMessage = AccessCodeFormat.InvalidFormatErrorMessage)]
     [Display(Name = "Access code")]
     public string Code { get; set; } = string.Empty;
 

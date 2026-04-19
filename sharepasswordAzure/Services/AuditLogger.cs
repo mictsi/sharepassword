@@ -8,17 +8,20 @@ public class AuditLogger : IAuditLogger
 {
     private readonly IAuditLogSink _auditLogSink;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IApplicationTime _applicationTime;
     private readonly ILogger<AuditLogger> _logger;
     private readonly ConsoleAuditLoggingOptions _consoleAuditLoggingOptions;
 
     public AuditLogger(
         IAuditLogSink auditLogSink,
         IHttpContextAccessor httpContextAccessor,
+        IApplicationTime applicationTime,
         ILogger<AuditLogger> logger,
         IOptions<ConsoleAuditLoggingOptions> consoleAuditLoggingOptions)
     {
         _auditLogSink = auditLogSink;
         _httpContextAccessor = httpContextAccessor;
+        _applicationTime = applicationTime;
         _logger = logger;
         _consoleAuditLoggingOptions = consoleAuditLoggingOptions.Value;
     }
@@ -59,7 +62,7 @@ public class AuditLogger : IAuditLogger
 
         var audit = new AuditLog
         {
-            TimestampUtc = DateTime.UtcNow,
+            TimestampUtc = _applicationTime.UtcNow,
             ActorType = sanitizedActorType,
             ActorIdentifier = sanitizedActorIdentifier,
             Operation = sanitizedOperation,

@@ -3,6 +3,7 @@
     "Name": "sharepasswordAzure",
     "EnableHttpsRedirection": true,
     "PathBase": "/",
+    "TimeZoneId": "UTC",
     "AuthenticationSessionTimeoutMinutes": 60,
     "AuthenticationSlidingExpiration": true
   },

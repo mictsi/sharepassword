@@ -178,6 +178,29 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
+    public async Task ConfiguredTimeZone_IsShownInAdminCreatePage()
+    {
+        await using var factory = new ConfiguredApplicationWebApplicationFactory(new Dictionary<string, string?>
+        {
+            ["Application:TimeZoneId"] = "Europe/Stockholm"
+        });
+
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = true,
+            AllowAutoRedirect = true
+        });
+
+        await LoginAsAdminAsync(client);
+
+        var html = await client.GetStringAsync("/admin/create");
+        var applicationTime = factory.Services.GetRequiredService<IApplicationTime>();
+
+        Assert.Contains(applicationTime.TimeZoneId, html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Get_Health_ReturnsSuccess()
     {
         using var client = CreateClient();
@@ -445,7 +468,7 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
 
     private static string ExtractAccessCode(string html)
     {
-        var match = Regex.Match(html, "<dd class=\"col-sm-9\"><strong>(?<code>[A-Z0-9]+)</strong></dd>");
+        var match = Regex.Match(html, "<dd class=\"col-sm-9\"><strong>(?<code>[A-Za-z0-9#-]+)</strong></dd>");
         if (!match.Success)
         {
             throw new InvalidOperationException("Access code not found in created page.");
@@ -488,6 +511,22 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         return pathBase.TrimEnd('/') + normalizedPath;
     }
 
+}
+
+public class ApplicationTimeTests
+{
+    [Fact]
+    public void FormatUtcForDisplay_UsesConfiguredTimeZone()
+    {
+        var service = new ApplicationTime(Microsoft.Extensions.Options.Options.Create(new SharePassword.Options.ApplicationOptions
+        {
+            TimeZoneId = "Europe/Stockholm"
+        }));
+
+        var formatted = service.FormatUtcForDisplay(new DateTime(2026, 4, 19, 12, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal("2026-04-19 14:00:00 +02:00", formatted);
+    }
 }
 
 public class TestWebApplicationFactory : WebApplicationFactory<Program>

@@ -18,6 +18,7 @@ public class AdminController : Controller
     private readonly IPasswordCryptoService _passwordCryptoService;
     private readonly IAccessCodeService _accessCodeService;
     private readonly IAuditLogger _auditLogger;
+    private readonly IApplicationTime _applicationTime;
     private readonly ShareOptions _shareOptions;
     private readonly OidcAuthOptions _oidcAuthOptions;
     private readonly string _adminRoleName;
@@ -28,6 +29,7 @@ public class AdminController : Controller
         IPasswordCryptoService passwordCryptoService,
         IAccessCodeService accessCodeService,
         IAuditLogger auditLogger,
+        IApplicationTime applicationTime,
         IOptions<ShareOptions> shareOptions,
         IOptions<OidcAuthOptions> oidcAuthOptions)
     {
@@ -36,6 +38,7 @@ public class AdminController : Controller
         _passwordCryptoService = passwordCryptoService;
         _accessCodeService = accessCodeService;
         _auditLogger = auditLogger;
+        _applicationTime = applicationTime;
         _shareOptions = shareOptions.Value;
         _oidcAuthOptions = oidcAuthOptions.Value;
         _adminRoleName = string.IsNullOrWhiteSpace(_oidcAuthOptions.AdminRoleName) ? "Admin" : _oidcAuthOptions.AdminRoleName.Trim();
@@ -45,6 +48,7 @@ public class AdminController : Controller
     public async Task<IActionResult> Index()
     {
         var shares = await _shareStore.GetAllSharesAsync();
+        var nowUtc = _applicationTime.UtcNow;
 
         if (!User.IsInRole(_adminRoleName))
         {
@@ -63,7 +67,7 @@ public class AdminController : Controller
                 SharedUsername = x.SharedUsername,
                 CreatedAtUtc = x.CreatedAtUtc,
                 ExpiresAtUtc = x.ExpiresAtUtc,
-                IsExpired = x.ExpiresAtUtc <= DateTime.UtcNow,
+                IsExpired = x.ExpiresAtUtc <= nowUtc,
                 RequireOidcLogin = x.RequireOidcLogin
             })
             .ToList();
@@ -98,7 +102,7 @@ public class AdminController : Controller
 
         var accessCode = _accessCodeService.GenerateCode();
         var token = Convert.ToHexString(Guid.NewGuid().ToByteArray()).ToLowerInvariant();
-        var now = DateTime.UtcNow;
+        var now = _applicationTime.UtcNow;
         var actorIdentifier = GetCurrentUserIdentifier();
         var actorType = GetCurrentActorType();
 
@@ -143,7 +147,7 @@ public class AdminController : Controller
             true,
             targetType: "PasswordShare",
             targetId: share.Id.ToString(),
-            details: $"Created share for {share.RecipientEmail} expiring at {share.ExpiresAtUtc:O}. requireOidcLogin={share.RequireOidcLogin}");
+            details: $"Created share for {share.RecipientEmail} expiring at {_applicationTime.FormatUtcForDisplay(share.ExpiresAtUtc)} ({_applicationTime.TimeZoneId}). requireOidcLogin={share.RequireOidcLogin}");
 
         var link = ApplicationPathHelper.BuildAbsoluteAppUrl(Request, $"/s/{share.AccessToken}");
 

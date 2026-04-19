@@ -21,8 +21,8 @@
     <dt class="col-sm-3">Requires Entra ID</dt>
     <dd class="col-sm-9">@(Model.RequireOidcLogin ? "Yes" : "No")</dd>
 
-    <dt class="col-sm-3">Expires (UTC)</dt>
-    <dd class="col-sm-9">@Model.ExpiresAtUtc.ToString("u")</dd>
+    <dt class="col-sm-3">Expires (@ApplicationTime.TimeZoneId)</dt>
+    <dd class="col-sm-9">@ApplicationTime.FormatUtcForDisplay(Model.ExpiresAtUtc)</dd>
 </dl>
 
 <div class="alert alert-info">

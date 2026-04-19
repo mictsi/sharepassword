@@ -28,7 +28,8 @@
 
             <div class="mb-3">
                 <label asp-for="Code" class="form-label"></label>
-                <input asp-for="Code" class="form-control" maxlength="8" autocomplete="one-time-code" />
+                <input asp-for="Code" class="form-control" maxlength="10" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" />
+                <div class="form-text">10 characters. Case-sensitive. Allowed characters: letters, numbers, #, -.</div>
                 <span asp-validation-for="Code" class="text-danger"></span>
             </div>
 
