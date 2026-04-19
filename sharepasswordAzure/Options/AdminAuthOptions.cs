@@ -6,4 +6,5 @@ public class AdminAuthOptions
 
     public string Username { get; set; } = "admin";
     public string Password { get; set; } = "ChangeThisPassword!";
+    public string PasswordHash { get; set; } = string.Empty;
 }

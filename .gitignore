@@ -58,3 +58,8 @@ sharepasswordAzure/appsettings.json
 sharepasswordAzure/appsettings.Development.json
 .env
 sharepasswordAzure/appsettings.Development copy.json
+.conn.txt
+sharepasswordAzure/App_Data/
+*.db
+*.db-shm
+*.db-wal

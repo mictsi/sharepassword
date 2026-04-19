@@ -201,6 +201,35 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         Assert.Contains("Invalid username/password.", auditHtml, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task SqliteProvider_AppliesMigrations_AndPersistsSharesAndAuditLogs()
+    {
+        await using var factory = new SqliteTestWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = true,
+            AllowAutoRedirect = true
+        });
+
+        await LoginAsAdminAsync(client);
+
+        var recipientEmail = $"recipient-{Guid.NewGuid():N}@example.com";
+        const string sharedUsername = "sqlite.user";
+        const string sharedPassword = "SqlitePassword!123";
+
+        var created = await CreateShareAsync(client, recipientEmail, sharedUsername, sharedPassword);
+        var accessResponse = await AccessShareAsync(client, created.SharePath, recipientEmail, created.AccessCode);
+        var accessHtml = await accessResponse.Content.ReadAsStringAsync();
+
+        accessResponse.EnsureSuccessStatusCode();
+        Assert.Contains("Shared Credentials", accessHtml, StringComparison.OrdinalIgnoreCase);
+
+        var auditHtml = await client.GetStringAsync("/admin/audit");
+        Assert.Contains("share.create", auditHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("share.access", auditHtml, StringComparison.OrdinalIgnoreCase);
+    }
+
     private HttpClient CreateClient()
     {
         return _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -346,8 +375,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
         {
             var overrides = new Dictionary<string, string?>
             {
-                ["AzureKeyVault:VaultUri"] = "https://unit-test.vault.azure.net/",
-                ["AzureTableAudit:ServiceSasUrl"] = "https://unit-test.table.core.windows.net/?sig=fake",
+                ["Storage:Backend"] = "sqlite",
+                ["SqliteStorage:ConnectionString"] = "Data Source=testwebfactory;Mode=Memory;Cache=Shared",
+                ["SqliteStorage:ApplyMigrationsOnStartup"] = "true",
                 ["AdminAuth:Username"] = "admin",
                 ["AdminAuth:Password"] = "admin123!ChangeMe",
                 ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
@@ -368,6 +398,43 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton<IAuditLogSink>(provider => provider.GetRequiredService<InMemoryAuditStore>());
             services.AddSingleton<IAuditLogReader>(provider => provider.GetRequiredService<InMemoryAuditStore>());
         });
+    }
+}
+
+internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Program>
+{
+    private readonly string _databaseDirectory = Path.Combine(Path.GetTempPath(), "sharepassword-tests", Guid.NewGuid().ToString("N"));
+
+    public string DatabasePath => Path.Combine(_databaseDirectory, "sharepassword.sqlite");
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            var overrides = new Dictionary<string, string?>
+            {
+                ["Storage:Backend"] = "sqlite",
+                ["SqliteStorage:ApplyMigrationsOnStartup"] = "true",
+                ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath}",
+                ["AdminAuth:Username"] = "admin",
+                ["AdminAuth:Password"] = "admin123!ChangeMe",
+                ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
+                ["Share:CleanupIntervalSeconds"] = "3600",
+                ["OidcAuth:Enabled"] = "false"
+            };
+
+            config.AddInMemoryCollection(overrides);
+        });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing && Directory.Exists(_databaseDirectory))
+        {
+            Directory.Delete(_databaseDirectory, recursive: true);
+        }
     }
 }
 
@@ -432,12 +499,14 @@ internal sealed class InMemoryShareStore : IShareStore
             RecipientEmail = share.RecipientEmail,
             SharedUsername = share.SharedUsername,
             EncryptedPassword = share.EncryptedPassword,
+            Instructions = share.Instructions,
             AccessCodeHash = share.AccessCodeHash,
             AccessToken = share.AccessToken,
             CreatedAtUtc = share.CreatedAtUtc,
             ExpiresAtUtc = share.ExpiresAtUtc,
             LastAccessedAtUtc = share.LastAccessedAtUtc,
-            CreatedBy = share.CreatedBy
+            CreatedBy = share.CreatedBy,
+            RequireOidcLogin = share.RequireOidcLogin
         };
     }
 }

@@ -4,6 +4,13 @@
 
 Secure password sharing app built with ASP.NET Core (.NET 10).
 
+Supported storage backends for both shares and audit logs:
+
+- SQLite
+- SQL Server
+- PostgreSQL
+- Azure Key Vault + Azure Table Storage
+
 Latest release: `0.2.6` (2026-02-25).
 
 ## Repository layout
@@ -58,7 +65,7 @@ A helper script is available at `scripts/deploy-appservice.ps1` to:
 - Configure required app settings (environment variables)
 - Publish and deploy the app package
 
-By default, the script reads application settings from `sharepasswordAzure/appsettings.Development.json` (for example Key Vault, Table SAS URL, admin credentials, OIDC, encryption, and share settings). CLI parameters still override file values when provided.
+By default, the script reads application settings from `sharepasswordAzure/appsettings.Development.json` (for example storage backend selection, per-backend config sections, admin credentials, OIDC, encryption, and share settings). CLI parameters still override file values when provided.
 
 Example:
 

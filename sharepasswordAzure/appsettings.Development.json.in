@@ -10,21 +10,39 @@
       }
     }
   },
-  "AzureKeyVault": {
-    "VaultUri": "",
-    "TenantId": "",
-    "ClientId": "",
-    "ClientSecret": "",
-    "SecretPrefix": "sharepassword"
+  "Storage": {
+    "Backend": "sqlite"
   },
-  "AzureTableAudit": {
-    "ServiceSasUrl": "",
-    "TableName": "auditlogs",
-    "PartitionKey": "audit"
+  "SqliteStorage": {
+    "ConnectionString": "Data Source=App_Data/sharepassword-dev.db",
+    "ApplyMigrationsOnStartup": true
+  },
+  "SqlServerStorage": {
+    "ConnectionString": "Server=tcp:sql.example.com,1433;Database=SharePasswordDev;Encrypt=True;TrustServerCertificate=False;User ID=sharepassword_app;Password=ChangeThisPassword!",
+    "ApplyMigrationsOnStartup": true
+  },
+  "PostgresqlStorage": {
+    "ConnectionString": "Host=localhost;Port=5432;Database=sharepassword_dev;Username=sharepassword_app;Password=ChangeThisPassword!;SSL Mode=Require;Trust Server Certificate=false",
+    "ApplyMigrationsOnStartup": true
+  },
+  "AzureStorage": {
+    "KeyVault": {
+      "VaultUri": "",
+      "TenantId": "",
+      "ClientId": "",
+      "ClientSecret": "",
+      "SecretPrefix": "sharepassword"
+    },
+    "TableAudit": {
+      "ServiceSasUrl": "",
+      "TableName": "auditlogs",
+      "PartitionKey": "audit"
+    }
   },
   "AdminAuth": {
     "Username": "admin",
-    "Password": "admin123!ChangeMe"
+    "Password": "admin123!ChangeMe",
+    "PasswordHash": ""
   },
   "OidcAuth": {
     "Enabled": false,

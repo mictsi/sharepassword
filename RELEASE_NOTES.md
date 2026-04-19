@@ -1,5 +1,16 @@
 # Release Notes
 
+## Unreleased
+
+Database storage modernization work in progress for `sharepasswordAzure`.
+
+### Highlights
+
+- Added EF Core-backed persistence for password shares and audit logs.
+- Added selectable storage backends for SQLite, SQL Server, PostgreSQL, and Azure.
+- Added per-backend configuration sections with an Azure-specific Key Vault + Table Storage layout.
+- Added automatic EF Core migration application during app startup.
+
 ## v0.2.6
 
 Instructions field and input-hardening release of `sharepasswordAzure`.

@@ -9,8 +9,9 @@ Secure password sharing for external users with:
 
 - Local admin login interface
 - External user access using unique link + email + access code
-- Encrypted password storage in Azure Key Vault
-- Audit logging in Azure Storage Table service
+- Selectable storage backend via configuration
+- EF Core-backed storage for SQLite, SQL Server, or PostgreSQL
+- Azure backend using Key Vault for shares and Azure Table Storage for audit logs
 - Automatic expiration and cleanup (default 4 hours)
 - Audit logging for admin, user, and system operations
 
@@ -59,16 +60,18 @@ Production hardening guide: `sharepasswordAzure/CONFIGURATION.md`
 - `Application:Name`: app name shown in config/operations.
 - `Application:EnableHttpsRedirection`: set `true` when HTTPS endpoint/certificate is configured.
 - `Kestrel:Endpoints:Http:Url`: HTTP host+port (example: `http://0.0.0.0:5099`).
-- `AzureKeyVault:VaultUri`: Key Vault URI (example: `https://myvault.vault.azure.net/`).
-- `AzureKeyVault:TenantId`: Microsoft Entra tenant ID for app authentication.
-- `AzureKeyVault:ClientId`: app registration client ID.
-- `AzureKeyVault:ClientSecret`: app registration client secret.
-- `AzureKeyVault:SecretPrefix`: secret name prefix used for share records.
-- `AzureTableAudit:ServiceSasUrl`: Azure Table service SAS URL.
-- `AzureTableAudit:TableName`: table name for audit events.
-- `AzureTableAudit:PartitionKey`: partition key used for audit rows.
+- `Storage:Backend`: selected storage backend (`sqlite`, `sqlserver`, `postgresql`, `azure`).
+- `SqliteStorage:ConnectionString`: SQLite connection string.
+- `SqliteStorage:ApplyMigrationsOnStartup`: applies pending EF Core migrations when `Storage:Backend=sqlite`.
+- `SqlServerStorage:ConnectionString`: SQL Server connection string.
+- `SqlServerStorage:ApplyMigrationsOnStartup`: applies pending EF Core migrations when `Storage:Backend=sqlserver`.
+- `PostgresqlStorage:ConnectionString`: PostgreSQL connection string.
+- `PostgresqlStorage:ApplyMigrationsOnStartup`: applies pending EF Core migrations when `Storage:Backend=postgresql`.
+- `AzureStorage:KeyVault:*`: Azure Key Vault settings used when `Storage:Backend=azure`.
+- `AzureStorage:TableAudit:*`: Azure Table Storage audit settings used when `Storage:Backend=azure`.
 - `AdminAuth:Username`: local admin username.
 - `AdminAuth:Password`: local admin password.
+- `AdminAuth:PasswordHash`: optional PBKDF2-SHA256 admin password hash.
 - `OidcAuth:Enabled`: enable OIDC as alternative admin login.
 - `OidcAuth:Authority`: OIDC authority/issuer URL.
 - `OidcAuth:ClientId`: OIDC client ID.
@@ -91,16 +94,24 @@ Production hardening guide: `sharepasswordAzure/CONFIGURATION.md`
 - `Logging:LogLevel:*`: standard ASP.NET logging levels.
 - `AllowedHosts`: allowed hostnames.
 
-### Using Key Vault
+### Using Storage Backends
 
-1. Set `AzureKeyVault:*` settings in `sharepasswordAzure/appsettings.Development.json` or environment variables.
-2. Grant the app identity permissions to list/get/set/delete secrets in Key Vault.
-3. Change `AdminAuth` credentials and `Encryption:Passphrase`.
-4. Start app using scripts or `dotnet run`.
+For SQLite, SQL Server, or PostgreSQL:
 
-Local/test shortcut:
+1. Set `Storage:Backend` to `sqlite`, `sqlserver`, or `postgresql`.
+2. Fill the matching `*Storage` section connection string.
+3. Set `ApplyMigrationsOnStartup=true` in that section if you want startup migration execution.
 
-- Configure `AzureKeyVault:*` directly in appsettings or environment variables.
+For Azure:
+
+1. Set `Storage:Backend` to `azure`.
+2. Fill `AzureStorage:KeyVault` for password-share secrets.
+3. Fill `AzureStorage:TableAudit` for audit logs.
+
+In all cases:
+
+1. Change `AdminAuth` credentials and `Encryption:Passphrase`.
+2. Start the app.
 
 ### OIDC login (alternative to local login)
 
@@ -120,16 +131,16 @@ Configuration is read from JSON files and environment variables. Use `__` for ne
 Examples:
 
 - `Kestrel__Endpoints__Https__Url=https://localhost:7099`
-- `AzureKeyVault__VaultUri=https://passwordmanagerazure.vault.azure.net/`
-- `AzureKeyVault__TenantId=<tenant-id>`
-- `AzureKeyVault__ClientId=<client-id>`
-- `AzureKeyVault__ClientSecret=<client-secret>`
-- `AzureKeyVault__SecretPrefix=sharepassword`
-- `AzureTableAudit__ServiceSasUrl=<table-service-sas-url>`
-- `AzureTableAudit__TableName=auditlogs`
-- `AzureTableAudit__PartitionKey=audit`
+- `Storage__Backend=sqlite`
+- `SqliteStorage__ConnectionString=Data Source=App_Data/sharepassword.db`
+- `SqliteStorage__ApplyMigrationsOnStartup=true`
+- `SqlServerStorage__ConnectionString=Server=tcp:sql.example.com,1433;Database=SharePassword;Encrypt=True;TrustServerCertificate=False;User ID=sharepassword_app;Password=<password>`
+- `PostgresqlStorage__ConnectionString=Host=db.example.com;Port=5432;Database=sharepassword;Username=sharepassword_app;Password=<password>;SSL Mode=Require;Trust Server Certificate=false`
+- `AzureStorage__KeyVault__VaultUri=https://myvault.vault.azure.net/`
+- `AzureStorage__TableAudit__ServiceSasUrl=<table-service-sas-url>`
 - `AdminAuth__Username=admin`
 - `AdminAuth__Password=<strong-password>`
+- `AdminAuth__PasswordHash=<pbkdf2-hash>`
 - `Encryption__Passphrase=<long-random-passphrase>`
 - `OidcAuth__Enabled=true`
 - `OidcAuth__Authority=https://login.microsoftonline.com/<tenant-id>/v2.0`
@@ -173,7 +184,7 @@ Instructions notes:
 
 ## Audit logs
 
-Audit log entries are stored in Azure Storage Table service (configured by `AzureTableAudit:*`) and are visible in admin UI (`Audit Logs`).
+Audit log entries are stored in the selected backend and are visible in admin UI (`Audit Logs`).
 
 - Login/logout attempts
 - Share creation and revoke

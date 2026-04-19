@@ -2,7 +2,7 @@ namespace SharePassword.Options;
 
 public class AzureKeyVaultOptions
 {
-    public const string SectionName = "AzureKeyVault";
+    public const string SectionName = "AzureStorage:KeyVault";
 
     public string VaultUri { get; set; } = string.Empty;
     public string? TenantId { get; set; }

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Azure;
 using System.Security.Claims;
 using SharePassword.Models;
 using SharePassword.Options;
@@ -121,7 +121,7 @@ public class AdminController : Controller
         {
             await _shareStore.UpsertShareAsync(share);
         }
-        catch (RequestFailedException ex) when (ex.Status == 403)
+        catch (DbUpdateException ex)
         {
             await _auditLogger.LogAsync(
                 actorType,
@@ -130,23 +130,9 @@ public class AdminController : Controller
                 false,
                 targetType: "PasswordShare",
                 targetId: share.Id.ToString(),
-                details: "Key Vault permission denied while creating share.");
+                details: $"Database write failed: {ex.GetBaseException().Message}");
 
-            ModelState.AddModelError(string.Empty, "Share could not be created because the application identity is missing Key Vault secret write permission.");
-            return View(model);
-        }
-        catch (RequestFailedException ex)
-        {
-            await _auditLogger.LogAsync(
-                actorType,
-                actorIdentifier,
-                "share.create",
-                false,
-                targetType: "PasswordShare",
-                targetId: share.Id.ToString(),
-                details: $"Azure request failed: {ex.Message}");
-
-            ModelState.AddModelError(string.Empty, "Share could not be created due to an Azure service error.");
+            ModelState.AddModelError(string.Empty, "Share could not be created due to a database error.");
             return View(model);
         }
 

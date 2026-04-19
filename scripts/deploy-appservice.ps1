@@ -15,6 +15,14 @@ param(
 	[string]$WebAppName,
 
 	[string]$SettingsFile = "./sharepasswordAzure/appsettings.Development.json",
+	[Alias("DatabaseProvider")]
+	[string]$StorageBackend = "sqlite",
+	[string]$SqliteConnectionString = "",
+	[bool]$SqliteApplyMigrationsOnStartup = $true,
+	[string]$SqlServerConnectionString = "",
+	[bool]$SqlServerApplyMigrationsOnStartup = $true,
+	[string]$PostgresqlConnectionString = "",
+	[bool]$PostgresqlApplyMigrationsOnStartup = $true,
 
 	[string]$AzureKeyVaultVaultUri,
 
@@ -38,6 +46,7 @@ param(
 	[string]$AzureTableAuditTableName = "auditlogs",
 	[string]$AzureTableAuditPartitionKey = "audit",
 	[string]$AdminUsername = "admin",
+	[string]$AdminPasswordHash = "",
 
 	[bool]$OidcEnabled = $false,
 	[string]$OidcAuthority = "",
@@ -112,18 +121,27 @@ if (-not [string]::IsNullOrWhiteSpace($SettingsFile) -and (Test-Path $SettingsFi
 	Write-Host "Loading settings from '$settingsPath'..." -ForegroundColor Cyan
 	$settingsJson = Get-Content -Path $settingsPath -Raw | ConvertFrom-Json
 
-	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultVaultUri")) { $AzureKeyVaultVaultUri = [string]$settingsJson.AzureKeyVault.VaultUri }
-	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultTenantId")) { $AzureKeyVaultTenantId = [string]$settingsJson.AzureKeyVault.TenantId }
-	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultClientId")) { $AzureKeyVaultClientId = [string]$settingsJson.AzureKeyVault.ClientId }
-	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultClientSecret")) { $AzureKeyVaultClientSecret = [string]$settingsJson.AzureKeyVault.ClientSecret }
-	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultSecretPrefix")) { $AzureKeyVaultSecretPrefix = [string]$settingsJson.AzureKeyVault.SecretPrefix }
+	if (-not $PSBoundParameters.ContainsKey("StorageBackend") -and $settingsJson.Storage.Backend) { $StorageBackend = [string]$settingsJson.Storage.Backend }
+	if (-not $PSBoundParameters.ContainsKey("SqliteConnectionString")) { $SqliteConnectionString = [string]$settingsJson.SqliteStorage.ConnectionString }
+	if (-not $PSBoundParameters.ContainsKey("SqliteApplyMigrationsOnStartup")) { $SqliteApplyMigrationsOnStartup = [bool]$settingsJson.SqliteStorage.ApplyMigrationsOnStartup }
+	if (-not $PSBoundParameters.ContainsKey("SqlServerConnectionString")) { $SqlServerConnectionString = [string]$settingsJson.SqlServerStorage.ConnectionString }
+	if (-not $PSBoundParameters.ContainsKey("SqlServerApplyMigrationsOnStartup")) { $SqlServerApplyMigrationsOnStartup = [bool]$settingsJson.SqlServerStorage.ApplyMigrationsOnStartup }
+	if (-not $PSBoundParameters.ContainsKey("PostgresqlConnectionString")) { $PostgresqlConnectionString = [string]$settingsJson.PostgresqlStorage.ConnectionString }
+	if (-not $PSBoundParameters.ContainsKey("PostgresqlApplyMigrationsOnStartup")) { $PostgresqlApplyMigrationsOnStartup = [bool]$settingsJson.PostgresqlStorage.ApplyMigrationsOnStartup }
 
-	if (-not $PSBoundParameters.ContainsKey("AzureTableAuditServiceSasUrl")) { $AzureTableAuditServiceSasUrl = [string]$settingsJson.AzureTableAudit.ServiceSasUrl }
-	if (-not $PSBoundParameters.ContainsKey("AzureTableAuditTableName")) { $AzureTableAuditTableName = [string]$settingsJson.AzureTableAudit.TableName }
-	if (-not $PSBoundParameters.ContainsKey("AzureTableAuditPartitionKey")) { $AzureTableAuditPartitionKey = [string]$settingsJson.AzureTableAudit.PartitionKey }
+	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultVaultUri")) { $AzureKeyVaultVaultUri = [string]$settingsJson.AzureStorage.KeyVault.VaultUri }
+	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultTenantId")) { $AzureKeyVaultTenantId = [string]$settingsJson.AzureStorage.KeyVault.TenantId }
+	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultClientId")) { $AzureKeyVaultClientId = [string]$settingsJson.AzureStorage.KeyVault.ClientId }
+	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultClientSecret")) { $AzureKeyVaultClientSecret = [string]$settingsJson.AzureStorage.KeyVault.ClientSecret }
+	if (-not $PSBoundParameters.ContainsKey("AzureKeyVaultSecretPrefix")) { $AzureKeyVaultSecretPrefix = [string]$settingsJson.AzureStorage.KeyVault.SecretPrefix }
+
+	if (-not $PSBoundParameters.ContainsKey("AzureTableAuditServiceSasUrl")) { $AzureTableAuditServiceSasUrl = [string]$settingsJson.AzureStorage.TableAudit.ServiceSasUrl }
+	if (-not $PSBoundParameters.ContainsKey("AzureTableAuditTableName")) { $AzureTableAuditTableName = [string]$settingsJson.AzureStorage.TableAudit.TableName }
+	if (-not $PSBoundParameters.ContainsKey("AzureTableAuditPartitionKey")) { $AzureTableAuditPartitionKey = [string]$settingsJson.AzureStorage.TableAudit.PartitionKey }
 
 	if (-not $PSBoundParameters.ContainsKey("AdminUsername")) { $AdminUsername = [string]$settingsJson.AdminAuth.Username }
 	if (-not $PSBoundParameters.ContainsKey("AdminPassword")) { $AdminPassword = [string]$settingsJson.AdminAuth.Password }
+	if (-not $PSBoundParameters.ContainsKey("AdminPasswordHash")) { $AdminPasswordHash = [string]$settingsJson.AdminAuth.PasswordHash }
 
 	if (-not $PSBoundParameters.ContainsKey("OidcEnabled")) { $OidcEnabled = [bool]$settingsJson.OidcAuth.Enabled }
 	if (-not $PSBoundParameters.ContainsKey("OidcAuthority")) { $OidcAuthority = [string]$settingsJson.OidcAuth.Authority }
@@ -150,16 +168,38 @@ if (-not [string]::IsNullOrWhiteSpace($SettingsFile) -and (Test-Path $SettingsFi
 	if (-not $PSBoundParameters.ContainsKey("LoggingMicrosoftAspNetCoreLevel") -and $settingsJson.Logging.LogLevel.'Microsoft.AspNetCore') { $LoggingMicrosoftAspNetCoreLevel = [string]$settingsJson.Logging.LogLevel.'Microsoft.AspNetCore' }
 }
 
-if ([string]::IsNullOrWhiteSpace($AzureKeyVaultVaultUri)) {
-	throw "AzureKeyVaultVaultUri is required. Provide -AzureKeyVaultVaultUri or set AzureKeyVault:VaultUri in the settings file."
+$normalizedStorageBackend = ($StorageBackend ?? "sqlite").Trim().ToLowerInvariant()
+
+if ($normalizedStorageBackend -in @("sqlite", "sqllite")) {
+	if ([string]::IsNullOrWhiteSpace($SqliteConnectionString)) {
+		throw "SqliteStorage:ConnectionString is required when Storage:Backend=sqlite."
+	}
+}
+elseif ($normalizedStorageBackend -in @("sqlserver", "mssql")) {
+	if ([string]::IsNullOrWhiteSpace($SqlServerConnectionString)) {
+		throw "SqlServerStorage:ConnectionString is required when Storage:Backend=sqlserver."
+	}
+}
+elseif ($normalizedStorageBackend -in @("postgresql", "postgres", "npgsql")) {
+	if ([string]::IsNullOrWhiteSpace($PostgresqlConnectionString)) {
+		throw "PostgresqlStorage:ConnectionString is required when Storage:Backend=postgresql."
+	}
+}
+elseif ($normalizedStorageBackend -eq "azure") {
+	if ([string]::IsNullOrWhiteSpace($AzureKeyVaultVaultUri)) {
+		throw "AzureStorage:KeyVault:VaultUri is required when Storage:Backend=azure."
+	}
+
+	if ([string]::IsNullOrWhiteSpace($AzureTableAuditServiceSasUrl)) {
+		throw "AzureStorage:TableAudit:ServiceSasUrl is required when Storage:Backend=azure."
+	}
+}
+else {
+	throw "Unsupported StorageBackend '$StorageBackend'. Supported values are sqlite, sqlserver, postgresql, and azure."
 }
 
-if ([string]::IsNullOrWhiteSpace($AzureTableAuditServiceSasUrl)) {
-	throw "AzureTableAuditServiceSasUrl is required. Provide -AzureTableAuditServiceSasUrl or set AzureTableAudit:ServiceSasUrl in the settings file."
-}
-
-if ([string]::IsNullOrWhiteSpace($AdminPassword)) {
-	throw "AdminPassword is required. Provide -AdminPassword or set AdminAuth:Password in the settings file."
+if ([string]::IsNullOrWhiteSpace($AdminPassword) -and [string]::IsNullOrWhiteSpace($AdminPasswordHash)) {
+	throw "Either AdminPassword or AdminPasswordHash is required. Configure one of them under AdminAuth in the settings file or pass it explicitly."
 }
 
 if ([string]::IsNullOrWhiteSpace($EncryptionPassphrase)) {
@@ -243,22 +283,33 @@ $oidcRequireHttpsMetadataValue = if ($OidcRequireHttpsMetadata) { "true" } else 
 $oidcLogTokensValue = if ($OidcLogTokensForTroubleshooting) { "true" } else { "false" }
 $httpsRedirectionValue = if ($EnableHttpsRedirection) { "true" } else { "false" }
 $consoleAuditEnabledValue = if ($ConsoleAuditLoggingEnabled) { "true" } else { "false" }
+$sqliteApplyMigrationsValue = if ($SqliteApplyMigrationsOnStartup) { "true" } else { "false" }
+$sqlServerApplyMigrationsValue = if ($SqlServerApplyMigrationsOnStartup) { "true" } else { "false" }
+$postgresqlApplyMigrationsValue = if ($PostgresqlApplyMigrationsOnStartup) { "true" } else { "false" }
 
 $settings = @(
 	"ASPNETCORE_ENVIRONMENT=$AppEnvironment",
 	"Application__EnableHttpsRedirection=$httpsRedirectionValue",
 	"Application__Name=sharepasswordAzure",
 	"Kestrel__Endpoints__Http__Url=http://+:8080",
-	"AzureKeyVault__VaultUri=$AzureKeyVaultVaultUri",
-	"AzureKeyVault__TenantId=$AzureKeyVaultTenantId",
-	"AzureKeyVault__ClientId=$AzureKeyVaultClientId",
-	"AzureKeyVault__ClientSecret=$AzureKeyVaultClientSecret",
-	"AzureKeyVault__SecretPrefix=$AzureKeyVaultSecretPrefix",
-	"AzureTableAudit__ServiceSasUrl=$AzureTableAuditServiceSasUrl",
-	"AzureTableAudit__TableName=$AzureTableAuditTableName",
-	"AzureTableAudit__PartitionKey=$AzureTableAuditPartitionKey",
+	"Storage__Backend=$normalizedStorageBackend",
+	"SqliteStorage__ConnectionString=$SqliteConnectionString",
+	"SqliteStorage__ApplyMigrationsOnStartup=$sqliteApplyMigrationsValue",
+	"SqlServerStorage__ConnectionString=$SqlServerConnectionString",
+	"SqlServerStorage__ApplyMigrationsOnStartup=$sqlServerApplyMigrationsValue",
+	"PostgresqlStorage__ConnectionString=$PostgresqlConnectionString",
+	"PostgresqlStorage__ApplyMigrationsOnStartup=$postgresqlApplyMigrationsValue",
+	"AzureStorage__KeyVault__VaultUri=$AzureKeyVaultVaultUri",
+	"AzureStorage__KeyVault__TenantId=$AzureKeyVaultTenantId",
+	"AzureStorage__KeyVault__ClientId=$AzureKeyVaultClientId",
+	"AzureStorage__KeyVault__ClientSecret=$AzureKeyVaultClientSecret",
+	"AzureStorage__KeyVault__SecretPrefix=$AzureKeyVaultSecretPrefix",
+	"AzureStorage__TableAudit__ServiceSasUrl=$AzureTableAuditServiceSasUrl",
+	"AzureStorage__TableAudit__TableName=$AzureTableAuditTableName",
+	"AzureStorage__TableAudit__PartitionKey=$AzureTableAuditPartitionKey",
 	"AdminAuth__Username=$AdminUsername",
 	"AdminAuth__Password=$AdminPassword",
+	"AdminAuth__PasswordHash=$AdminPasswordHash",
 	"OidcAuth__Enabled=$oidcEnabledValue",
 	"OidcAuth__Authority=$OidcAuthority",
 	"OidcAuth__ClientId=$OidcClientId",

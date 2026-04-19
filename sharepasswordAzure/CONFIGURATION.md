@@ -42,21 +42,23 @@ Example HTTP-only (reverse proxy handles TLS):
 
 If exposing directly on internet, terminate TLS at app or trusted ingress and restrict inbound ports.
 
-## 3) Database provider and connection strings
+## 3) Storage backend selection
 
 Set:
 
-- `Database:Provider`: `sqlite`, `sqlserver`, or `postgresql`
-- `ConnectionStrings:DefaultConnection`
+- `Storage:Backend`: `sqlite`, `sqlserver`, `postgresql`, or `azure`
 
 ### SQLite
 
 Use only for small/single-instance deployments:
 
 ```json
-"Database": { "Provider": "sqlite" },
-"ConnectionStrings": {
-  "DefaultConnection": "Data Source=/var/lib/sharepassword/sharepassword.db"
+"Storage": {
+  "Backend": "sqlite"
+},
+"SqliteStorage": {
+  "ConnectionString": "Data Source=/var/lib/sharepassword/sharepassword.db",
+  "ApplyMigrationsOnStartup": true
 }
 ```
 
@@ -65,9 +67,12 @@ Use only for small/single-instance deployments:
 Use encrypted transport and managed identity/least privilege where possible:
 
 ```json
-"Database": { "Provider": "sqlserver" },
-"ConnectionStrings": {
-  "DefaultConnection": "Server=tcp:sql.example.com,1433;Database=SharePassword;Encrypt=True;TrustServerCertificate=False;User ID=...;Password=..."
+"Storage": {
+  "Backend": "sqlserver"
+},
+"SqlServerStorage": {
+  "ConnectionString": "Server=tcp:sql.example.com,1433;Database=SharePassword;Encrypt=True;TrustServerCertificate=False;User ID=...;Password=...",
+  "ApplyMigrationsOnStartup": true
 }
 ```
 
@@ -76,9 +81,36 @@ Use encrypted transport and managed identity/least privilege where possible:
 Require SSL mode and least-privilege DB user:
 
 ```json
-"Database": { "Provider": "postgresql" },
-"ConnectionStrings": {
-  "DefaultConnection": "Host=db.example.com;Port=5432;Database=sharepassword;Username=sharepassword_app;Password=...;SSL Mode=Require;Trust Server Certificate=false"
+"Storage": {
+  "Backend": "postgresql"
+},
+"PostgresqlStorage": {
+  "ConnectionString": "Host=db.example.com;Port=5432;Database=sharepassword;Username=sharepassword_app;Password=...;SSL Mode=Require;Trust Server Certificate=false",
+  "ApplyMigrationsOnStartup": true
+}
+```
+
+### Azure
+
+For the Azure backend, shares are stored in Key Vault and audit logs are stored in Azure Table Storage:
+
+```json
+"Storage": {
+  "Backend": "azure"
+},
+"AzureStorage": {
+  "KeyVault": {
+    "VaultUri": "https://sharepassword.vault.azure.net/",
+    "TenantId": "<tenant-id>",
+    "ClientId": "<client-id>",
+    "ClientSecret": "<client-secret>",
+    "SecretPrefix": "sharepassword"
+  },
+  "TableAudit": {
+    "ServiceSasUrl": "https://account.table.core.windows.net/?<sas>",
+    "TableName": "auditlogs",
+    "PartitionKey": "audit"
+  }
 }
 ```
 
@@ -122,12 +154,12 @@ Create environment-specific config (for example `appsettings.Production.json`):
       }
     }
   },
-  "Database": {
-    "Provider": "postgresql",
-    "AutoCreate": true
+  "Storage": {
+    "Backend": "postgresql"
   },
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=db.example.com;Port=5432;Database=sharepassword;Username=sharepassword_app;Password=...;SSL Mode=Require;Trust Server Certificate=false"
+  "PostgresqlStorage": {
+    "ConnectionString": "Host=db.example.com;Port=5432;Database=sharepassword;Username=sharepassword_app;Password=...;SSL Mode=Require;Trust Server Certificate=false",
+    "ApplyMigrationsOnStartup": true
   },
   "Share": {
     "DefaultExpiryHours": 2,

@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- Added EF Core-backed storage support for `sqlite`, `sqlserver`, and `postgresql`.
+- Added provider-specific migrations and automatic schema migration on application startup.
+- Added unified database persistence for both password shares and audit logs.
+- Added configurable `Storage:Backend` selection with per-backend config sections.
+- Restored Azure storage backend support using Key Vault for shares and Table Storage for audit logs.
+
+### Changed
+- Reworked `appsettings*.json` to use separate `SqliteStorage`, `SqlServerStorage`, `PostgresqlStorage`, and `AzureStorage` sections.
+- Updated deployment and configuration documentation for database-backed storage.
+
 ## [0.2.6] - 2026-02-25
 
 ### Added
