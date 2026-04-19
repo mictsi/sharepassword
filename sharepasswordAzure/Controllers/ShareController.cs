@@ -56,7 +56,7 @@ public class ShareController : Controller
             {
                 return Challenge(new AuthenticationProperties
                 {
-                    RedirectUri = Url.Action(nameof(Access), new { token })
+                    RedirectUri = ApplicationPathHelper.BuildAppPath(Request.PathBase, Url.Action(nameof(Access), new { token }) ?? "/")
                 }, OpenIdConnectDefaults.AuthenticationScheme);
             }
 
@@ -112,7 +112,7 @@ public class ShareController : Controller
             {
                 return Challenge(new AuthenticationProperties
                 {
-                    RedirectUri = Url.Action(nameof(Access), new { token = model.Token })
+                    RedirectUri = ApplicationPathHelper.BuildAppPath(Request.PathBase, Url.Action(nameof(Access), new { token = model.Token }) ?? "/")
                 }, OpenIdConnectDefaults.AuthenticationScheme);
             }
 

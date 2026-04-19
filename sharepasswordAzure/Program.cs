@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using SharePassword.Data;
 using SharePassword.Options;
@@ -8,6 +10,17 @@ using SharePassword.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
+
+builder.Services
+    .AddOptions<ApplicationOptions>()
+    .Bind(builder.Configuration.GetSection(ApplicationOptions.SectionName))
+    .Validate(
+        options => ApplicationOptions.IsValidPathBase(options.PathBase),
+        "Application:PathBase must be '/' or a relative path like '/sharepassword'.")
+    .Validate(
+        options => options.AuthenticationSessionTimeoutMinutes > 0,
+        "Application:AuthenticationSessionTimeoutMinutes must be greater than 0.")
+    .ValidateOnStart();
 
 builder.Services
     .AddOptions<AdminAuthOptions>()
@@ -23,6 +36,14 @@ builder.Services.Configure<EncryptionOptions>(builder.Configuration.GetSection(E
 builder.Services.Configure<ShareOptions>(builder.Configuration.GetSection(ShareOptions.SectionName));
 builder.Services.Configure<OidcAuthOptions>(builder.Configuration.GetSection(OidcAuthOptions.SectionName));
 builder.Services.Configure<ConsoleAuditLoggingOptions>(builder.Configuration.GetSection(ConsoleAuditLoggingOptions.SectionName));
+builder.Services.AddAntiforgery();
+builder.Services
+    .AddOptions<AntiforgeryOptions>()
+    .Configure<IOptions<ApplicationOptions>>((options, applicationOptionsAccessor) =>
+    {
+        var normalizedPathBase = ApplicationOptions.NormalizePathBase(applicationOptionsAccessor.Value.PathBase);
+        options.Cookie.Path = string.IsNullOrEmpty(normalizedPathBase) ? "/" : normalizedPathBase;
+    });
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHealthChecks();
@@ -45,11 +66,21 @@ var authenticationBuilder = builder.Services
         options.LoginPath = "/account/login";
         options.LogoutPath = "/account/logout";
         options.AccessDeniedPath = "/account/login";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
-        options.SlidingExpiration = true;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
+
+builder.Services
+    .AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+    .Configure<IOptions<ApplicationOptions>>((options, applicationOptionsAccessor) =>
+    {
+        var applicationOptions = applicationOptionsAccessor.Value;
+        var normalizedPathBase = ApplicationOptions.NormalizePathBase(applicationOptions.PathBase);
+
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(applicationOptions.AuthenticationSessionTimeoutMinutes);
+        options.SlidingExpiration = applicationOptions.AuthenticationSlidingExpiration;
+        options.Cookie.Path = string.IsNullOrEmpty(normalizedPathBase) ? "/" : normalizedPathBase;
     });
 
 if (oidcOptions.Enabled)
@@ -269,6 +300,8 @@ builder.Services.AddSingleton<IAuditLogger, AuditLogger>();
 builder.Services.AddHostedService<ExpiredShareCleanupService>();
 
 var app = builder.Build();
+var runtimeApplicationOptions = app.Services.GetRequiredService<IOptions<ApplicationOptions>>().Value;
+var normalizedPathBase = ApplicationOptions.NormalizePathBase(runtimeApplicationOptions.PathBase);
 
 await app.Services.ApplyConfiguredStorageMigrationsAsync();
 
@@ -278,9 +311,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-if (builder.Configuration.GetValue("Application:EnableHttpsRedirection", false))
+if (runtimeApplicationOptions.EnableHttpsRedirection)
 {
     app.UseHttpsRedirection();
+}
+
+if (!string.IsNullOrEmpty(normalizedPathBase))
+{
+    app.UsePathBase(normalizedPathBase);
 }
 
 app.Use(async (context, next) =>

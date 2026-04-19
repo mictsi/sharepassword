@@ -36,6 +36,9 @@ param(
 	[string]$Sku = "B1",
 	[string]$Runtime = "DOTNETCORE:10.0",
 	[string]$AppEnvironment = "Production",
+	[string]$ApplicationPathBase = "/",
+	[int]$AuthenticationSessionTimeoutMinutes = 60,
+	[bool]$AuthenticationSlidingExpiration = $true,
 
 	[string]$AzureKeyVaultTenantId = "",
 	[string]$AzureKeyVaultClientId = "",
@@ -163,6 +166,9 @@ if (-not [string]::IsNullOrWhiteSpace($SettingsFile) -and (Test-Path $SettingsFi
 	if (-not $PSBoundParameters.ContainsKey("ConsoleAuditLoggingLevel")) { $ConsoleAuditLoggingLevel = [string]$settingsJson.ConsoleAuditLogging.Level }
 	if (-not $PSBoundParameters.ContainsKey("LoggingDefaultLevel") -and $settingsJson.Logging.LogLevel.Default) { $LoggingDefaultLevel = [string]$settingsJson.Logging.LogLevel.Default }
 	if (-not $PSBoundParameters.ContainsKey("LoggingMicrosoftAspNetCoreLevel") -and $settingsJson.Logging.LogLevel.'Microsoft.AspNetCore') { $LoggingMicrosoftAspNetCoreLevel = [string]$settingsJson.Logging.LogLevel.'Microsoft.AspNetCore' }
+	if (-not $PSBoundParameters.ContainsKey("ApplicationPathBase")) { $ApplicationPathBase = [string]$settingsJson.Application.PathBase }
+	if (-not $PSBoundParameters.ContainsKey("AuthenticationSessionTimeoutMinutes") -and $settingsJson.Application.AuthenticationSessionTimeoutMinutes) { $AuthenticationSessionTimeoutMinutes = [int]$settingsJson.Application.AuthenticationSessionTimeoutMinutes }
+	if (-not $PSBoundParameters.ContainsKey("AuthenticationSlidingExpiration")) { $AuthenticationSlidingExpiration = [bool]$settingsJson.Application.AuthenticationSlidingExpiration }
 }
 
 $normalizedStorageBackend = ($StorageBackend ?? "sqlite").Trim().ToLowerInvariant()
@@ -197,6 +203,10 @@ else {
 
 if ([string]::IsNullOrWhiteSpace($AdminPasswordHash)) {
 	throw "AdminPasswordHash is required. Configure AdminAuth:PasswordHash in the settings file or pass -AdminPasswordHash. Generate one with ./scripts/new-admin-password-hash.ps1."
+}
+
+if ($AuthenticationSessionTimeoutMinutes -le 0) {
+	throw "AuthenticationSessionTimeoutMinutes must be greater than 0."
 }
 
 if ([string]::IsNullOrWhiteSpace($EncryptionPassphrase)) {
@@ -283,11 +293,15 @@ $consoleAuditEnabledValue = if ($ConsoleAuditLoggingEnabled) { "true" } else { "
 $sqliteApplyMigrationsValue = if ($SqliteApplyMigrationsOnStartup) { "true" } else { "false" }
 $sqlServerApplyMigrationsValue = if ($SqlServerApplyMigrationsOnStartup) { "true" } else { "false" }
 $postgresqlApplyMigrationsValue = if ($PostgresqlApplyMigrationsOnStartup) { "true" } else { "false" }
+$authenticationSlidingExpirationValue = if ($AuthenticationSlidingExpiration) { "true" } else { "false" }
 
 $settings = @(
 	"ASPNETCORE_ENVIRONMENT=$AppEnvironment",
 	"Application__EnableHttpsRedirection=$httpsRedirectionValue",
 	"Application__Name=sharepasswordAzure",
+	"Application__PathBase=$ApplicationPathBase",
+	"Application__AuthenticationSessionTimeoutMinutes=$AuthenticationSessionTimeoutMinutes",
+	"Application__AuthenticationSlidingExpiration=$authenticationSlidingExpirationValue",
 	"Kestrel__Endpoints__Http__Url=http://+:8080",
 	"Storage__Backend=$normalizedStorageBackend",
 	"SqliteStorage__ConnectionString=$SqliteConnectionString",

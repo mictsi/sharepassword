@@ -59,6 +59,9 @@ Production hardening guide: `sharepasswordAzure/CONFIGURATION.md`
 
 - `Application:Name`: app name shown in config/operations.
 - `Application:EnableHttpsRedirection`: set `true` when HTTPS endpoint/certificate is configured.
+- `Application:PathBase`: base path when the app is published under a sub-URI (default `/`).
+- `Application:AuthenticationSessionTimeoutMinutes`: idle timeout for the authentication session cookie (default `60`).
+- `Application:AuthenticationSlidingExpiration`: when `true`, refreshes the session timeout while the user remains active.
 - `Kestrel:Endpoints:Http:Url`: HTTP host+port (example: `http://0.0.0.0:5099`).
 - `Storage:Backend`: selected storage backend (`sqlite`, `sqlserver`, `postgresql`, `azure`).
 - `SqliteStorage:ConnectionString`: SQLite connection string.
@@ -143,7 +146,9 @@ For Azure:
 In all cases:
 
 1. Change `AdminAuth:Username`, configure `AdminAuth:PasswordHash`, and change `Encryption:Passphrase`.
-2. Start the app.
+2. If the app is published below the site root, set `Application:PathBase` to that subpath such as `/sharepassword`.
+3. Adjust `Application:AuthenticationSessionTimeoutMinutes` and `Application:AuthenticationSlidingExpiration` if the default 60-minute session policy is not what you want.
+4. Start the app.
 
 ### OIDC login (alternative to local login)
 
@@ -163,6 +168,9 @@ Configuration is read from JSON files and environment variables. Use `__` for ne
 Examples:
 
 - `Kestrel__Endpoints__Https__Url=https://localhost:7099`
+- `Application__PathBase=/`
+- `Application__AuthenticationSessionTimeoutMinutes=60`
+- `Application__AuthenticationSlidingExpiration=true`
 - `Storage__Backend=sqlite`
 - `SqliteStorage__ConnectionString=Data Source=App_Data/sharepassword.db`
 - `SqliteStorage__ApplyMigrationsOnStartup=true`

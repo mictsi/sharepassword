@@ -1,7 +1,10 @@
 {
   "Application": {
     "Name": "sharepasswordAzure",
-    "EnableHttpsRedirection": true
+    "EnableHttpsRedirection": true,
+    "PathBase": "/",
+    "AuthenticationSessionTimeoutMinutes": 60,
+    "AuthenticationSlidingExpiration": true
   },
   "Kestrel": {
     "Endpoints": {

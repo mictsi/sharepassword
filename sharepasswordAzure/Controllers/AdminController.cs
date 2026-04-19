@@ -145,7 +145,7 @@ public class AdminController : Controller
             targetId: share.Id.ToString(),
             details: $"Created share for {share.RecipientEmail} expiring at {share.ExpiresAtUtc:O}. requireOidcLogin={share.RequireOidcLogin}");
 
-        var link = Url.Action("Access", "Share", new { token = share.AccessToken }, Request.Scheme) ?? string.Empty;
+        var link = ApplicationPathHelper.BuildAbsoluteAppUrl(Request, $"/s/{share.AccessToken}");
 
         return View("Created", new AdminShareCreatedViewModel
         {

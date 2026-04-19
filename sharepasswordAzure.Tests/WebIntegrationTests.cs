@@ -2,12 +2,14 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using SharePassword.Models;
 using SharePassword.Services;
 
@@ -114,6 +116,65 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         var loginResponse = await client.SendAsync(loginRequest);
 
         Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConfiguredPathBase_AndAuthenticationSessionSettings_AreApplied()
+    {
+        const string pathBase = "/published-app";
+
+        await using var factory = new ConfiguredApplicationWebApplicationFactory(new Dictionary<string, string?>
+        {
+            ["Application:PathBase"] = pathBase,
+            ["Application:AuthenticationSessionTimeoutMinutes"] = "25",
+            ["Application:AuthenticationSlidingExpiration"] = "false"
+        });
+
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = true,
+            AllowAutoRedirect = false
+        });
+
+        var cookieOptionsMonitor = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>();
+        var cookieOptions = cookieOptionsMonitor.Get(CookieAuthenticationDefaults.AuthenticationScheme);
+
+        Assert.Equal(TimeSpan.FromMinutes(25), cookieOptions.ExpireTimeSpan);
+        Assert.False(cookieOptions.SlidingExpiration);
+        Assert.Equal(pathBase, cookieOptions.Cookie.Path);
+
+        var loginPath = CombineAppPath(pathBase, "/account/login");
+        var loginPageResponse = await client.GetAsync(loginPath);
+        var loginPage = await loginPageResponse.Content.ReadAsStringAsync();
+        var antiForgery = ExtractAntiForgeryToken(loginPage);
+
+        var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginPath)
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = antiForgery,
+                ["Username"] = TestAdminAuth.Username,
+                ["Password"] = TestAdminAuth.Password
+            })
+        };
+
+        loginRequest.Headers.Referrer = new Uri($"https://localhost{loginPath}");
+        var loginResponse = await client.SendAsync(loginRequest);
+
+        Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
+        Assert.True(loginResponse.Headers.TryGetValues("Set-Cookie", out var cookieHeaders));
+
+        var authCookie = cookieHeaders.FirstOrDefault(x => x.StartsWith(".AspNetCore.Cookies=", StringComparison.Ordinal));
+        Assert.False(string.IsNullOrWhiteSpace(authCookie));
+        Assert.DoesNotContain("expires=", authCookie!, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("max-age=", authCookie!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"path={pathBase}", authCookie!, StringComparison.OrdinalIgnoreCase);
+
+        var recipientEmail = $"recipient-{Guid.NewGuid():N}@example.com";
+        var created = await CreateShareAsync(client, recipientEmail, "basepath.user", "BasePathPassword!123", pathBase);
+
+        Assert.StartsWith($"{pathBase}/s/", created.SharePath, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -312,12 +373,14 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         HttpClient client,
         string recipientEmail,
         string sharedUsername,
-        string sharedPassword)
+        string sharedPassword,
+        string pathBase = "")
     {
-        var createPage = await client.GetStringAsync("/admin/create");
+        var createPath = CombineAppPath(pathBase, "/admin/create");
+        var createPage = await client.GetStringAsync(createPath);
         var antiForgery = ExtractAntiForgeryToken(createPage);
 
-        var createRequest = new HttpRequestMessage(HttpMethod.Post, "/admin/create")
+        var createRequest = new HttpRequestMessage(HttpMethod.Post, createPath)
         {
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -329,7 +392,7 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
             })
         };
 
-        createRequest.Headers.Referrer = new Uri("https://localhost/admin/create");
+        createRequest.Headers.Referrer = new Uri($"https://localhost{createPath}");
         var createResponse = await client.SendAsync(createRequest);
         var createHtml = await createResponse.Content.ReadAsStringAsync();
 
@@ -371,7 +434,7 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
 
     private static string ExtractSharePath(string html)
     {
-        var match = Regex.Match(html, "https?://[^\"<>]+(?<path>/s/[a-z0-9]+)");
+        var match = Regex.Match(html, "https?://[^/\"<>]+(?<path>/(?:[^\"<>/]+/)*s/[a-z0-9]+)");
         if (!match.Success)
         {
             throw new InvalidOperationException("Share path not found in created page.");
@@ -413,6 +476,18 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         return match.Groups["id"].Value;
     }
 
+    private static string CombineAppPath(string pathBase, string path)
+    {
+        var normalizedPath = path.StartsWith('/') ? path : "/" + path;
+
+        if (string.IsNullOrWhiteSpace(pathBase) || string.Equals(pathBase, "/", StringComparison.Ordinal))
+        {
+            return normalizedPath;
+        }
+
+        return pathBase.TrimEnd('/') + normalizedPath;
+    }
+
 }
 
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
@@ -445,6 +520,26 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton<InMemoryAuditStore>();
             services.AddSingleton<IAuditLogSink>(provider => provider.GetRequiredService<InMemoryAuditStore>());
             services.AddSingleton<IAuditLogReader>(provider => provider.GetRequiredService<InMemoryAuditStore>());
+        });
+    }
+}
+
+internal sealed class ConfiguredApplicationWebApplicationFactory : TestWebApplicationFactory
+{
+    private readonly IReadOnlyDictionary<string, string?> _overrides;
+
+    public ConfiguredApplicationWebApplicationFactory(IReadOnlyDictionary<string, string?> overrides)
+    {
+        _overrides = overrides;
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(_overrides);
         });
     }
 }

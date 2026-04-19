@@ -42,6 +42,18 @@ Example HTTP-only (reverse proxy handles TLS):
 }
 ```
 
+If the app is hosted under a sub-URI on the web server, configure `Application:PathBase`.
+
+Examples:
+
+- Root deployment: `"PathBase": "/"`
+- Subpath deployment: `"PathBase": "/sharepassword"`
+
+Authentication cookies remain session-only, so closing the browser ends the session. The default idle timeout is 60 minutes and can be configured with:
+
+- `Application:AuthenticationSessionTimeoutMinutes`
+- `Application:AuthenticationSlidingExpiration`
+
 If exposing directly on internet, terminate TLS at app or trusted ingress and restrict inbound ports.
 
 ## 3) Storage backend selection

@@ -113,7 +113,7 @@ public class AccountController : Controller
             return RedirectToAction(nameof(Login), new { returnUrl });
         }
 
-        var redirectUri = Url.Action("Index", "Admin");
+        var redirectUri = ApplicationPathHelper.BuildAppPath(Request.PathBase, Url.Action("Index", "Admin") ?? "/");
         if (Url.IsLocalUrl(returnUrl))
         {
             redirectUri = returnUrl;
@@ -151,7 +151,7 @@ public class AccountController : Controller
         {
             var properties = new AuthenticationProperties
             {
-                RedirectUri = Url.Action(nameof(Login))
+                RedirectUri = ApplicationPathHelper.BuildAppPath(Request.PathBase, Url.Action(nameof(Login)) ?? "/")
             };
 
             return SignOut(properties, OpenIdConnectDefaults.AuthenticationScheme, CookieAuthenticationDefaults.AuthenticationScheme);
