@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Database storage modernization work in progress for `sharepasswordAzure`.
+Database storage modernization work in progress for `sharepassword`.
 
 ### Highlights
 
@@ -13,7 +13,7 @@ Database storage modernization work in progress for `sharepasswordAzure`.
 
 ## v0.2.6
 
-Instructions field and input-hardening release of `sharepasswordAzure`.
+Instructions field and input-hardening release of `sharepassword`.
 
 ### Highlights
 
@@ -31,7 +31,7 @@ Instructions field and input-hardening release of `sharepasswordAzure`.
 
 ## v0.2.5
 
-Security headers and session-cookie validation release of `sharepasswordAzure`.
+Security headers and session-cookie validation release of `sharepassword`.
 
 ### Highlights
 
@@ -49,7 +49,7 @@ Security headers and session-cookie validation release of `sharepasswordAzure`.
 
 ## v0.2.4
 
-Security and deployment hardening release of `sharepasswordAzure`.
+Security and deployment hardening release of `sharepassword`.
 
 ### Highlights
 
@@ -65,7 +65,7 @@ Security and deployment hardening release of `sharepasswordAzure`.
 
 ## v0.2.3
 
-Secret text handling and usability release of `sharepasswordAzure`.
+Secret text handling and usability release of `sharepassword`.
 
 ### Highlights
 
@@ -82,7 +82,7 @@ Secret text handling and usability release of `sharepasswordAzure`.
 
 ## v0.2.2
 
-UX and branding refresh release of `sharepasswordAzure`.
+UX and branding refresh release of `sharepassword`.
 
 ### Highlights
 
@@ -99,7 +99,7 @@ UX and branding refresh release of `sharepasswordAzure`.
 
 ## v0.2.1
 
-Security maintenance release of `sharepasswordAzure`.
+Security maintenance release of `sharepassword`.
 
 ### Highlights
 
@@ -114,7 +114,7 @@ Security maintenance release of `sharepasswordAzure`.
 
 ## v0.2.0
 
-Feature and security release of `sharepasswordAzure`.
+Feature and security release of `sharepassword`.
 
 ### Highlights
 
@@ -134,7 +134,7 @@ Feature and security release of `sharepasswordAzure`.
 
 ## v0.1.4-alpha.1
 
-Alpha feature release of `sharepasswordAzure`.
+Alpha feature release of `sharepassword`.
 
 ### Highlights
 
@@ -152,12 +152,12 @@ Alpha feature release of `sharepasswordAzure`.
 
 ## v0.1.3
 
-Security maintenance release of `sharepasswordAzure`.
+Security maintenance release of `sharepassword`.
 
 ### Highlights
 
 - Patched vendored jQuery validation plugin to address code scanning alert #5 (`Unsafe jQuery plugin`).
-- Updated `sharepasswordAzure/wwwroot/lib/jquery-validation/dist/jquery.validate.js` with the remediation change.
+- Updated `sharepassword/wwwroot/lib/jquery-validation/dist/jquery.validate.js` with the remediation change.
 
 ### Notes
 
@@ -166,7 +166,7 @@ Security maintenance release of `sharepasswordAzure`.
 
 ## v0.1.2
 
-Feature release of `sharepasswordAzure`.
+Feature release of `sharepassword`.
 
 ### Highlights
 
@@ -183,7 +183,7 @@ Feature release of `sharepasswordAzure`.
 
 ## v0.1.1
 
-Maintenance release of `sharepasswordAzure`.
+Maintenance release of `sharepassword`.
 
 ### Highlights
 
@@ -198,7 +198,7 @@ Maintenance release of `sharepasswordAzure`.
 
 ## v0.1.0
 
-Initial public release of `sharepasswordAzure`.
+Initial public release of `sharepassword`.
 
 ### Highlights
 

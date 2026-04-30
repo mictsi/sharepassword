@@ -319,7 +319,7 @@ if ([string]::IsNullOrWhiteSpace($principalObjectId) -and -not $SkipAppRegistrat
         "ad","app","credential","reset",
         "--id",$appClientId,
         "--append",
-        "--display-name","sharepasswordAzure",
+        "--display-name","sharepassword",
         "--years","2",
         "--query","password",
         "--output","tsv"
@@ -347,7 +347,7 @@ if (-not $SkipOidcAppRegistration) {
         "ad","app","credential","reset",
         "--id",$oidcAppClientId,
         "--append",
-        "--display-name","sharepasswordAzure-oidc",
+        "--display-name","sharepassword-oidc",
         "--years","2",
         "--query","password",
         "--output","tsv"

@@ -1,7 +1,7 @@
-# sharepasswordAzure (.NET 10)
+# sharepassword (.NET 10)
 
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)
-[![Build](https://github.com/mictsi/sharepasswordAzure/actions/workflows/build.yml/badge.svg)](https://github.com/mictsi/sharepasswordAzure/actions/workflows/build.yml)
+[![Build](https://github.com/mictsi/sharepassword/actions/workflows/build.yml/badge.svg)](https://github.com/mictsi/sharepassword/actions/workflows/build.yml)
 
 Latest release: `0.2.6` (2026-02-25). See `../RELEASE_NOTES.md`.
 
@@ -39,21 +39,21 @@ chmod +x ./start-linux.sh
 ./start-linux.sh
 ```
 
-By default, scripts use URL/port from `sharepasswordAzure/appsettings*.json` (development default: `Kestrel:Endpoints:Https:Url`).
+By default, scripts use URL/port from `sharepassword/appsettings*.json` (development default: `Kestrel:Endpoints:Https:Url`).
 
 Optional overrides:
 
-- Windows: `./start-win.ps1 -ProjectPath ./sharepasswordAzure/sharepasswordAzure.csproj -Urls https://localhost:7099 -Configuration Release -Environment Development`
-- Linux: `./start-linux.sh ./sharepasswordAzure/sharepasswordAzure.csproj https://localhost:7099 Release Development`
+- Windows: `./start-win.ps1 -ProjectPath ./sharepassword/sharepassword.csproj -Urls https://localhost:7099 -Configuration Release -Environment Development`
+- Linux: `./start-linux.sh ./sharepassword/sharepassword.csproj https://localhost:7099 Release Development`
 
 ## Configuration
 
 Primary settings live in:
 
-- `sharepasswordAzure/appsettings.json`
-- `sharepasswordAzure/appsettings.Development.json`
+- `sharepassword/appsettings.json`
+- `sharepassword/appsettings.Development.json`
 
-Production hardening guide: `sharepasswordAzure/CONFIGURATION.md`
+Production hardening guide: `sharepassword/CONFIGURATION.md`
 
 ### Configuration reference
 

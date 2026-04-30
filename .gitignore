@@ -54,12 +54,12 @@ TestResult.xml
 nunit-*.xml
 
 # Custom entries for this project
-sharepasswordAzure/appsettings.json
-sharepasswordAzure/appsettings.Development.json
+sharepassword/appsettings.json
+sharepassword/appsettings.Development.json
 .env
-sharepasswordAzure/appsettings.Development copy.json
+sharepassword/appsettings.Development copy.json
 .conn.txt
-sharepasswordAzure/App_Data/
+sharepassword/App_Data/
 *.db
 *.db-shm
 *.db-wal

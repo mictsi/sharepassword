@@ -1,6 +1,6 @@
 {
   "Application": {
-    "Name": "sharepasswordAzure",
+    "Name": "sharepassword",
     "EnableHttpsRedirection": false,
     "PathBase": "/",
     "TimeZoneId": "UTC",

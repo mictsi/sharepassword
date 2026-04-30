@@ -739,7 +739,7 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
-      "sharepasswordazure": {
+      "sharepassword": {
         "type": "Project",
         "dependencies": {
           "Azure.Data.Tables": "[12.11.0, )",

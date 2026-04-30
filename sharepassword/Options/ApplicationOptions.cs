@@ -4,7 +4,7 @@ public class ApplicationOptions
 {
     public const string SectionName = "Application";
 
-    public string Name { get; set; } = "sharepasswordAzure";
+    public string Name { get; set; } = "sharepassword";
     public bool EnableHttpsRedirection { get; set; }
     public string PathBase { get; set; } = "/";
     public string TimeZoneId { get; set; } = "UTC";

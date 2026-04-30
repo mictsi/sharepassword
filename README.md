@@ -1,6 +1,6 @@
-# sharepasswordAzure
+# sharepassword
 
-[![Build](https://github.com/mictsi/sharepasswordAzure/actions/workflows/build.yml/badge.svg)](https://github.com/mictsi/sharepasswordAzure/actions/workflows/build.yml)
+[![Build](https://github.com/mictsi/sharepassword/actions/workflows/build.yml/badge.svg)](https://github.com/mictsi/sharepassword/actions/workflows/build.yml)
 
 Secure password sharing app built with ASP.NET Core (.NET 10).
 
@@ -15,8 +15,8 @@ Latest release: `0.2.6` (2026-02-25).
 
 ## Repository layout
 
-- `sharepasswordAzure/` — web application project
-- `sharepasswordAzure.Tests/` — test project
+- `sharepassword/` — web application project
+- `sharepassword.Tests/` — test project
 - `.github/workflows/build.yml` — CI workflow
 - `CHANGELOG.md` — changelog
 - `RELEASE_NOTES.md` — consolidated release notes
@@ -24,14 +24,14 @@ Latest release: `0.2.6` (2026-02-25).
 ## Quick start
 
 ```bash
-dotnet restore ./sharepasswordAzure.sln
-dotnet run --project ./sharepasswordAzure/sharepasswordAzure.csproj
+dotnet restore ./sharepassword.sln
+dotnet run --project ./sharepassword/sharepassword.csproj
 ```
 
 For full configuration and usage instructions, see:
 
-- [sharepasswordAzure/README.md](sharepasswordAzure/README.md)
-- [sharepasswordAzure/CONFIGURATION.md](sharepasswordAzure/CONFIGURATION.md)
+- [sharepassword/README.md](sharepassword/README.md)
+- [sharepassword/CONFIGURATION.md](sharepassword/CONFIGURATION.md)
 
 ## Admin password hash
 
@@ -43,7 +43,7 @@ Generate a PBKDF2-SHA256 admin password hash from the repository root with:
 
 Paste the output into `AdminAuth:PasswordHash`. Cleartext `AdminAuth:Password` is no longer supported.
 
-The full admin authentication configuration is documented in `sharepasswordAzure/README.md`.
+The full admin authentication configuration is documented in `sharepassword/README.md`.
 
 ## Azure provisioning script
 
@@ -77,7 +77,7 @@ A helper script is available at `scripts/deploy-appservice.ps1` to:
 - Configure required app settings (environment variables)
 - Publish and deploy the app package
 
-By default, the script reads application settings from `sharepasswordAzure/appsettings.Development.json` (for example storage backend selection, per-backend config sections, admin credentials, OIDC, encryption, and share settings). CLI parameters still override file values when provided.
+By default, the script reads application settings from `sharepassword/appsettings.Development.json` (for example storage backend selection, per-backend config sections, admin credentials, OIDC, encryption, and share settings). CLI parameters still override file values when provided.
 
 Example:
 

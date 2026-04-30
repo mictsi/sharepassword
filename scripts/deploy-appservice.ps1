@@ -14,7 +14,7 @@ param(
 	[Parameter(Mandatory = $true)]
 	[string]$WebAppName,
 
-	[string]$SettingsFile = "./sharepasswordAzure/appsettings.Development.json",
+	[string]$SettingsFile = "./sharepassword/appsettings.Development.json",
 	[Alias("DatabaseProvider")]
 	[string]$StorageBackend = "sqlite",
 	[string]$SqliteConnectionString = "",
@@ -30,7 +30,7 @@ param(
 
 	[string]$EncryptionPassphrase,
 
-	[string]$ProjectPath = "./sharepasswordAzure/sharepasswordAzure.csproj",
+	[string]$ProjectPath = "./sharepassword/sharepassword.csproj",
 	[string]$Configuration = "Release",
 	[string]$OutputDirectory = "./artifacts/deploy/appservice",
 	[string]$Sku = "B1",
@@ -300,7 +300,7 @@ $authenticationSlidingExpirationValue = if ($AuthenticationSlidingExpiration) { 
 $settings = @(
 	"ASPNETCORE_ENVIRONMENT=$AppEnvironment",
 	"Application__EnableHttpsRedirection=$httpsRedirectionValue",
-	"Application__Name=sharepasswordAzure",
+	"Application__Name=sharepassword",
 	"Application__PathBase=$ApplicationPathBase",
 	"Application__TimeZoneId=$ApplicationTimeZoneId",
 	"Application__AuthenticationSessionTimeoutMinutes=$AuthenticationSessionTimeoutMinutes",
