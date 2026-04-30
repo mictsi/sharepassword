@@ -63,3 +63,5 @@ sharepassword/App_Data/
 *.db
 *.db-shm
 *.db-wal
+
+todos/
