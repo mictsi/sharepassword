@@ -1,60 +1,189 @@
-@model IReadOnlyCollection<SharePassword.ViewModels.AdminShareListItemViewModel>
+@model SharePassword.ViewModels.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
+
+    string FormatStamp(DateTime value)
+    {
+        var local = ApplicationTime.ConvertUtcToApplicationTime(value);
+        return $"{local:MMM dd, yyyy HH:mm} {ApplicationTime.TimeZoneId}";
+    }
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">Password Shares</h2>
-    <a class="btn btn-primary" asp-action="Create">Create Share</a>
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Admin console</div>
+        <h1 class="page-title">Password shares</h1>
+        <p class="page-subtitle">Create, monitor, and revoke one-time credential deliveries without exposing the secret in the admin workflow.</p>
+    </div>
+    <div class="page-header__actions">
+        <a class="btn btn-primary" asp-action="Create">Create secure share</a>
+    </div>
 </div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Recipient</th>
-            <th>Username</th>
-            <th>Access Mode</th>
-            <th>Created (@ApplicationTime.TimeZoneId)</th>
-            <th>Expires (@ApplicationTime.TimeZoneId)</th>
-            <th>Status</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model)
-        {
-            <tr>
-                <td>@item.RecipientEmail</td>
-                <td>@item.SharedUsername</td>
-                <td>
-                    @if (item.RequireOidcLogin)
+<div class="summary-grid">
+    <section class="surface-card summary-card">
+        <span class="page-eyebrow">Active</span>
+        <span class="summary-card__value">@Model.ActiveCount</span>
+        <span class="summary-card__meta">Shares that can still be opened.</span>
+    </section>
+    <section class="surface-card summary-card">
+        <span class="page-eyebrow">Expiring soon</span>
+        <span class="summary-card__value">@Model.ExpiringSoonCount</span>
+        <span class="summary-card__meta">Expires within the next 24 hours.</span>
+    </section>
+    <section class="surface-card summary-card">
+        <span class="page-eyebrow">Accessed</span>
+        <span class="summary-card__value">@Model.AccessedCount</span>
+        <span class="summary-card__meta">Shares opened at least once.</span>
+    </section>
+    <section class="surface-card summary-card">
+        <span class="page-eyebrow">Revoked</span>
+        <span class="summary-card__value">@Model.RevokedCount</span>
+        <span class="summary-card__meta">Audit-confirmed manual revocations.</span>
+    </section>
+</div>
+
+<section class="surface-card">
+    <form method="get" class="filter-toolbar">
+        <div class="filter-toolbar__grid">
+            <div class="filter-toolbar__field">
+                <label for="dashboardSearch">Search</label>
+                <input id="dashboardSearch" type="text" name="search" value="@Model.Search" class="form-control" placeholder="Search recipient or username" />
+            </div>
+            <div class="filter-toolbar__field">
+                <label for="dashboardStatus">Status</label>
+                <select id="dashboardStatus" name="status" class="form-select">
+                    @foreach (var status in SharePassword.ViewModels.AdminShareStatusOption.AllValues)
                     {
-                        <span class="badge bg-info text-dark">Entra ID Required + Email + Code</span>
+                        <option value="@status" selected="@(status == Model.SelectedStatus)">@SharePassword.ViewModels.AdminShareStatusOption.GetLabel(status)</option>
                     }
-                    else
+                </select>
+            </div>
+        </div>
+
+        <div class="filter-toolbar__actions">
+            <button type="submit" class="btn btn-primary">Apply filters</button>
+            @if (Model.HasFilters)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Clear filters</a>
+            }
+        </div>
+    </form>
+</section>
+
+@if (!Model.HasShares)
+{
+    <section class="surface-card empty-state">
+        <h2 class="empty-state__title">No shares created yet</h2>
+        <p class="empty-state__text">Create a secure share to send a link and a one-time access code through separate channels.</p>
+        <div class="empty-state__actions">
+            <a class="btn btn-primary" asp-action="Create">Create secure share</a>
+        </div>
+    </section>
+}
+else if (!Model.HasResults)
+{
+    <section class="surface-card empty-state">
+        <h2 class="empty-state__title">No shares match the current filters</h2>
+        <p class="empty-state__text">Adjust the status filter or clear the search to see the full list again.</p>
+        <div class="empty-state__actions">
+            <a class="btn btn-outline-secondary" asp-action="Index">Reset filters</a>
+        </div>
+    </section>
+}
+else
+{
+    <section class="surface-card">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <h2 class="surface-card__title">Current shares</h2>
+            <p class="surface-card__subtitle mb-0">Showing @Model.Shares.Count of @Model.TotalVisibleShares shares.</p>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table data-table">
+                <thead>
+                    <tr>
+                        <th>Recipient</th>
+                        <th>Username</th>
+                        <th>Access mode</th>
+                        <th>Created (@ApplicationTime.TimeZoneId)</th>
+                        <th>Expires (@ApplicationTime.TimeZoneId)</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Shares)
                     {
-                        <span class="badge bg-light text-dark border">Email + Code</span>
+                        <tr>
+                            <td>
+                                <div class="cell-primary">@item.RecipientEmail</div>
+                            </td>
+                            <td>
+                                <div class="cell-primary">@item.SharedUsername</div>
+                                @if (item.HasBeenAccessed && item.LastAccessedAtUtc.HasValue)
+                                {
+                                    <div class="cell-meta">Opened @FormatStamp(item.LastAccessedAtUtc.Value)</div>
+                                }
+                            </td>
+                            <td>
+                                <span class="status-badge status-badge--@item.AccessModeTone">@item.AccessModeLabel</span>
+                            </td>
+                            <td>
+                                <div class="cell-primary">@FormatStamp(item.CreatedAtUtc)</div>
+                            </td>
+                            <td>
+                                <div class="cell-primary">@FormatStamp(item.ExpiresAtUtc)</div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-badge--@item.StatusTone">@item.StatusLabel</span>
+                            </td>
+                            <td>
+                                <form asp-action="Revoke" method="post" data-confirm="Revoke this share? The link and access code will stop working immediately.">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Revoke</button>
+                                </form>
+                            </td>
+                        </tr>
                     }
-                </td>
-                <td>@ApplicationTime.FormatUtcForDisplay(item.CreatedAtUtc)</td>
-                <td>@ApplicationTime.FormatUtcForDisplay(item.ExpiresAtUtc)</td>
-                <td>
-                    @if (item.IsExpired)
-                    {
-                        <span class="badge bg-secondary">Expired</span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-success">Active</span>
-                    }
-                </td>
-                <td>
-                    <form asp-action="Revoke" method="post" class="d-inline">
-                        <input type="hidden" name="id" value="@item.Id" />
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
-                    </form>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="share-list-mobile">
+            <div class="stack-list">
+                @foreach (var item in Model.Shares)
+                {
+                    <article class="surface-card stack-card">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <div class="cell-primary">@item.RecipientEmail</div>
+                                <div class="cell-meta">@item.SharedUsername</div>
+                            </div>
+                            <span class="status-badge status-badge--@item.StatusTone">@item.StatusLabel</span>
+                        </div>
+                        <div class="stack-card__row">
+                            <span class="stack-card__label">Access mode</span>
+                            <span class="stack-card__value">@item.AccessModeLabel</span>
+                        </div>
+                        <div class="stack-card__row">
+                            <span class="stack-card__label">Expires</span>
+                            <span class="stack-card__value">@FormatStamp(item.ExpiresAtUtc)</span>
+                        </div>
+                        @if (item.HasBeenAccessed && item.LastAccessedAtUtc.HasValue)
+                        {
+                            <div class="stack-card__row">
+                                <span class="stack-card__label">Opened</span>
+                                <span class="stack-card__value">@FormatStamp(item.LastAccessedAtUtc.Value)</span>
+                            </div>
+                        }
+                        <form asp-action="Revoke" method="post" class="mt-3" data-confirm="Revoke this share? The link and access code will stop working immediately.">
+                            <input type="hidden" name="id" value="@item.Id" />
+                            <button type="submit" class="btn btn-outline-danger">Revoke</button>
+                        </form>
+                    </article>
+                }
+            </div>
+        </div>
+    </section>
+}

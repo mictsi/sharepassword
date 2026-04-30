@@ -46,20 +46,24 @@ public class AdminController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? search, string? status = null)
     {
         var shares = await _shareStore.GetAllSharesAsync();
         var nowUtc = _applicationTime.UtcNow;
+        var currentUser = GetCurrentUserIdentifier();
+        var isAdmin = User.IsInRole(_adminRoleName);
 
-        if (!User.IsInRole(_adminRoleName))
+        if (!isAdmin)
         {
-            var currentUser = GetCurrentUserIdentifier();
             shares = shares
                 .Where(x => string.Equals(x.CreatedBy, currentUser, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
 
-        var items = shares
+        var normalizedSearch = NormalizeFilter(search) ?? string.Empty;
+        var normalizedStatus = AdminShareStatusOption.Normalize(status);
+
+        var allItems = shares
             .OrderByDescending(x => x.CreatedAtUtc)
             .Select(x => new AdminShareListItemViewModel
             {
@@ -68,12 +72,35 @@ public class AdminController : Controller
                 SharedUsername = x.SharedUsername,
                 CreatedAtUtc = x.CreatedAtUtc,
                 ExpiresAtUtc = x.ExpiresAtUtc,
+                LastAccessedAtUtc = x.LastAccessedAtUtc,
                 IsExpired = x.ExpiresAtUtc <= nowUtc,
+                IsExpiringSoon = x.ExpiresAtUtc > nowUtc && x.ExpiresAtUtc <= nowUtc.AddHours(24),
                 RequireOidcLogin = x.RequireOidcLogin
             })
             .ToList();
 
-        return View(items);
+        var filteredItems = allItems
+            .Where(x => MatchesDashboardSearch(x, normalizedSearch) && MatchesDashboardStatus(x, normalizedStatus))
+            .ToList();
+
+        var auditLogs = await _auditLogReader.GetLatestAsync(5000);
+        var visibleAuditLogs = isAdmin
+            ? auditLogs
+            : auditLogs.Where(x => string.Equals(x.ActorIdentifier, currentUser, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        var model = new AdminDashboardViewModel
+        {
+            Search = normalizedSearch,
+            SelectedStatus = normalizedStatus,
+            ActiveCount = allItems.Count(x => !x.IsExpired),
+            ExpiringSoonCount = allItems.Count(x => x.IsExpiringSoon),
+            AccessedCount = allItems.Count(x => x.HasBeenAccessed),
+            RevokedCount = visibleAuditLogs.Count(x => x.Success && string.Equals(x.Operation, "share.revoke", StringComparison.OrdinalIgnoreCase)),
+            TotalVisibleShares = allItems.Count,
+            Shares = filteredItems
+        };
+
+        return View(model);
     }
 
     [HttpGet]
@@ -93,7 +120,7 @@ public class AdminController : Controller
 
         if (model.RequireOidcLogin && !_oidcAuthOptions.Enabled)
         {
-            ModelState.AddModelError(nameof(model.RequireOidcLogin), "OIDC must be enabled before requiring Entra ID login for share links.");
+            ModelState.AddModelError(nameof(model.RequireOidcLogin), "Microsoft Entra ID sign-in must be enabled before requiring it for share links.");
         }
 
         if (!ModelState.IsValid)
@@ -190,28 +217,25 @@ public class AdminController : Controller
 
     [HttpGet]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> Audit(string? search, string? range = null, int page = 1, int pageSize = 100)
+    public async Task<IActionResult> Audit(string? search, string? actor, string? operation, string? success, string? range = null, int page = 1, int pageSize = 100)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 10, 200);
 
         var logs = await _auditLogReader.GetLatestAsync(5000);
         var normalizedRange = AdminAuditRangeOption.Normalize(range);
+        var normalizedSearch = NormalizeFilter(search);
+        var normalizedActor = NormalizeFilter(actor);
+        var normalizedOperation = NormalizeOperation(operation);
+        var normalizedSuccess = AdminAuditSuccessOption.Normalize(success);
         var filteredByRange = ApplyAuditRange(logs, normalizedRange);
-
-        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
-        var filtered = string.IsNullOrWhiteSpace(normalizedSearch)
-            ? filteredByRange
-            : filteredByRange.Where(x =>
-                   Contains(x.ActorType, normalizedSearch)
-                || Contains(x.ActorIdentifier, normalizedSearch)
-                || Contains(x.Operation, normalizedSearch)
-                || Contains(x.TargetType, normalizedSearch)
-                || Contains(x.TargetId, normalizedSearch)
-                || Contains(x.IpAddress, normalizedSearch)
-                || Contains(x.CorrelationId, normalizedSearch)
-                || Contains(x.Details, normalizedSearch))
-                .ToList();
+        var availableOperations = filteredByRange
+            .Select(x => x.Operation)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var filtered = ApplyAuditFilters(filteredByRange, normalizedSearch, normalizedActor, normalizedOperation, normalizedSuccess);
 
         var totalCount = filtered.Count;
         var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -230,7 +254,11 @@ public class AdminController : Controller
             Logs = pagedLogs,
             ExportLogs = filtered.OrderByDescending(x => x.TimestampUtc).ToList(),
             Search = normalizedSearch,
+            Actor = normalizedActor,
             SelectedRange = normalizedRange,
+            SelectedOperation = normalizedOperation,
+            SelectedSuccess = normalizedSuccess,
+            AvailableOperations = availableOperations,
             Page = page,
             PageSize = pageSize,
             TotalCount = totalCount
@@ -241,25 +269,16 @@ public class AdminController : Controller
 
     [HttpGet]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> ExportAuditJson(string? search, string? range = null)
+    public async Task<IActionResult> ExportAuditJson(string? search, string? actor, string? operation, string? success, string? range = null)
     {
         var logs = await _auditLogReader.GetLatestAsync(5000);
         var normalizedRange = AdminAuditRangeOption.Normalize(range);
         var filteredByRange = ApplyAuditRange(logs, normalizedRange);
-        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
-
-        var filtered = string.IsNullOrWhiteSpace(normalizedSearch)
-            ? filteredByRange
-            : filteredByRange.Where(x =>
-                   Contains(x.ActorType, normalizedSearch)
-                || Contains(x.ActorIdentifier, normalizedSearch)
-                || Contains(x.Operation, normalizedSearch)
-                || Contains(x.TargetType, normalizedSearch)
-                || Contains(x.TargetId, normalizedSearch)
-                || Contains(x.IpAddress, normalizedSearch)
-                || Contains(x.CorrelationId, normalizedSearch)
-                || Contains(x.Details, normalizedSearch))
-                .ToList();
+        var normalizedSearch = NormalizeFilter(search);
+        var normalizedActor = NormalizeFilter(actor);
+        var normalizedOperation = NormalizeOperation(operation);
+        var normalizedSuccess = AdminAuditSuccessOption.Normalize(success);
+        var filtered = ApplyAuditFilters(filteredByRange, normalizedSearch, normalizedActor, normalizedOperation, normalizedSuccess);
 
         var payload = filtered
             .OrderByDescending(x => x.TimestampUtc)
@@ -291,6 +310,67 @@ public class AdminController : Controller
     {
         return !string.IsNullOrWhiteSpace(source)
             && source.Contains(value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool MatchesDashboardSearch(AdminShareListItemViewModel item, string search)
+    {
+        return string.IsNullOrWhiteSpace(search)
+            || Contains(item.RecipientEmail, search)
+            || Contains(item.SharedUsername, search);
+    }
+
+    private static bool MatchesDashboardStatus(AdminShareListItemViewModel item, string status)
+    {
+        return AdminShareStatusOption.Normalize(status) switch
+        {
+            AdminShareStatusOption.Active => !item.IsExpired,
+            AdminShareStatusOption.ExpiringSoon => item.IsExpiringSoon,
+            AdminShareStatusOption.Accessed => item.HasBeenAccessed,
+            AdminShareStatusOption.Expired => item.IsExpired,
+            _ => true
+        };
+    }
+
+    private static string? NormalizeFilter(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string NormalizeOperation(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? AdminAuditOperationOption.All : value.Trim();
+    }
+
+    private static List<AuditLog> ApplyAuditFilters(
+        IReadOnlyCollection<AuditLog> logs,
+        string? search,
+        string? actor,
+        string operation,
+        string success)
+    {
+        return logs.Where(x =>
+                (string.IsNullOrWhiteSpace(actor)
+                    || Contains(x.ActorType, actor)
+                    || Contains(x.ActorIdentifier, actor))
+                && (string.Equals(operation, AdminAuditOperationOption.All, StringComparison.Ordinal)
+                    || string.Equals(x.Operation, operation, StringComparison.OrdinalIgnoreCase))
+                && (AdminAuditSuccessOption.Normalize(success) switch
+                {
+                    AdminAuditSuccessOption.Success => x.Success,
+                    AdminAuditSuccessOption.Failure => !x.Success,
+                    _ => true
+                })
+                && (string.IsNullOrWhiteSpace(search)
+                    || Contains(x.ActorType, search)
+                    || Contains(x.ActorIdentifier, search)
+                    || Contains(x.Operation, search)
+                    || Contains(x.TargetType, search)
+                    || Contains(x.TargetId, search)
+                    || Contains(x.IpAddress, search)
+                    || Contains(x.CorrelationId, search)
+                    || Contains(x.Details, search)))
+            .OrderByDescending(x => x.TimestampUtc)
+            .ToList();
     }
 
     private List<AuditLog> ApplyAuditRange(IReadOnlyCollection<AuditLog> logs, string normalizedRange)

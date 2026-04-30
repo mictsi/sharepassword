@@ -16,9 +16,9 @@ public class AdminCreateShareViewModel
     public string SharedUsername { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(1000, ErrorMessage = "Secret text cannot exceed 1000 characters.")]
+    [StringLength(1000, ErrorMessage = "Password or secret cannot exceed 1000 characters.")]
     [DataType(DataType.MultilineText)]
-    [Display(Name = "Secret text")]
+    [Display(Name = "Password or secret")]
     public string Password { get; set; } = string.Empty;
 
     [StringLength(1000, ErrorMessage = "Instructions cannot exceed 1000 characters.")]
@@ -27,9 +27,9 @@ public class AdminCreateShareViewModel
     public string Instructions { get; set; } = string.Empty;
 
     [Range(1, 168)]
-    [Display(Name = "Expires in (hours)")]
+    [Display(Name = "Expiration")]
     public int ExpiryHours { get; set; } = 4;
 
-    [Display(Name = "Require Entra ID login to access")]
+    [Display(Name = "Require Microsoft Entra ID sign-in")]
     public bool RequireOidcLogin { get; set; }
 }

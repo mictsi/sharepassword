@@ -1,35 +1,77 @@
 @model SharePassword.ViewModels.AdminShareCreatedViewModel
 @{
     ViewData["Title"] = "Share Created";
+
+    var expiresLocal = ApplicationTime.ConvertUtcToApplicationTime(Model.ExpiresAtUtc);
 }
 
-<h2>Password Share Created</h2>
-<div class="alert alert-warning">
-    Save the access code now. It is only shown once.
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Step 2</div>
+        <h1 class="page-title">Share created</h1>
+        <p class="page-subtitle">Store the one-time access code now, then deliver the link and code through separate channels.</p>
+    </div>
 </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Recipient</dt>
-    <dd class="col-sm-9">@Model.RecipientEmail</dd>
+<section class="surface-card surface-card--warning">
+    <h2 class="surface-card__title">This access code is shown only once</h2>
+    <p class="surface-card__subtitle">Copy it now before leaving this page.</p>
+</section>
 
-    <dt class="col-sm-3">Unique Link</dt>
-    <dd class="col-sm-9"><a href="@Model.ShareLink" target="_blank" rel="noopener noreferrer">@Model.ShareLink</a></dd>
+<div class="created-share-grid">
+    <section class="surface-card">
+        <div class="copy-field">
+            <span class="copy-field__label">Recipient</span>
+            <div class="cell-primary">@Model.RecipientEmail</div>
+        </div>
 
-    <dt class="col-sm-3">Access Code</dt>
-    <dd class="col-sm-9"><strong>@Model.AccessCode</strong></dd>
+        <div class="copy-field mt-4">
+            <span class="copy-field__label">Share link</span>
+            <div class="copy-field__row">
+                <input id="createdShareLink" class="form-control" value="@Model.ShareLink" readonly />
+                <button type="button" class="btn btn-outline-secondary" data-copy-target="createdShareLink" data-copy-success="Link copied">Copy link</button>
+            </div>
+        </div>
 
-    <dt class="col-sm-3">Requires Entra ID</dt>
-    <dd class="col-sm-9">@(Model.RequireOidcLogin ? "Yes" : "No")</dd>
+        <div class="copy-field mt-4">
+            <span class="copy-field__label">Access code</span>
+            <div class="copy-field__row">
+                <input id="createdAccessCode" class="form-control copy-field__input--code" value="@Model.AccessCode" readonly />
+                <button type="button" class="btn btn-primary" data-copy-target="createdAccessCode" data-copy-success="Code copied">Copy code</button>
+            </div>
+        </div>
+    </section>
 
-    <dt class="col-sm-3">Expires (@ApplicationTime.TimeZoneId)</dt>
-    <dd class="col-sm-9">@ApplicationTime.FormatUtcForDisplay(Model.ExpiresAtUtc)</dd>
-</dl>
+    <aside class="created-share-sidebar">
+        <section class="surface-card">
+            <span class="copy-field__label">Expiration</span>
+            <div class="cell-primary">@($"{expiresLocal:MMM dd, yyyy HH:mm} {ApplicationTime.TimeZoneId}")</div>
+        </section>
 
-<div class="alert alert-info">
-    <h5>Instructions for sharing a password</h5>
-    <p class="mb-1">Instructions how to send the password information to user.</p>
-    <p class="mb-1">You are allowed to "Send the Recipient, link and expiration time via email to user"</p>
-    <p class="mb-0">Access code should be sent to the users via sms to mobile phone</p>
+        <section class="surface-card">
+            <span class="copy-field__label">Access protection</span>
+            @if (Model.RequireOidcLogin)
+            {
+                <span class="status-badge status-badge--entra mt-2">Microsoft Entra ID + access code</span>
+            }
+            else
+            {
+                <span class="status-badge status-badge--standard mt-2">Email + access code</span>
+            }
+        </section>
+    </aside>
 </div>
 
-<a class="btn btn-primary" asp-action="Index">Back to Dashboard</a>
+<section class="surface-card surface-card--info">
+    <h2 class="surface-card__title">Recommended delivery</h2>
+    <p class="surface-card__subtitle">Send the share link and access code through separate channels. For example, send the link by email and the access code by SMS.</p>
+    <ol class="mb-0 mt-3">
+        <li>Send the share link by email.</li>
+        <li>Send the access code by SMS or another separate channel.</li>
+        <li>Do not send both in the same message.</li>
+    </ol>
+</section>
+
+<div class="action-row">
+    <a class="btn btn-primary" asp-action="Index">Back to dashboard</a>
+</div>

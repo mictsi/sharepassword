@@ -3,40 +3,41 @@
     ViewData["Title"] = "Access Shared Password";
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <h2>Access Shared Credentials</h2>
-        @if (Model.RequireOidcLogin)
-        {
-            <p>This share requires Entra ID sign-in. Your signed-in account must match the recipient email, then enter the access code.</p>
-        }
-        else
-        {
-            <p>Enter your email address and access code to view the shared password.</p>
-        }
+<section class="public-card public-card--compact">
+    <div class="page-eyebrow">Secure access</div>
+    <h1 class="page-title">Access shared credentials</h1>
+    @if (Model.RequireOidcLogin)
+    {
+        <p class="page-subtitle">This share requires Microsoft Entra ID sign-in. Continue with the signed-in account that matches the recipient email, then enter the access code.</p>
+    }
+    else
+    {
+        <p class="page-subtitle">A password has been securely shared with you. Enter your email and access code to continue.</p>
+    }
 
-        <form asp-action="Access" method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input asp-for="Token" type="hidden" />
-            <input asp-for="RequireOidcLogin" type="hidden" />
+    <form asp-action="Access" method="post" class="mt-4">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger app-validation-summary" role="alert"></div>
+        <input asp-for="Token" type="hidden" />
+        <input asp-for="RequireOidcLogin" type="hidden" />
 
-            <div class="mb-3">
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" maxlength="256" readonly="@(Model.RequireOidcLogin ? "readonly" : null)" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
+        <div class="mb-3">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" class="form-control" maxlength="256" readonly="@(Model.RequireOidcLogin ? "readonly" : null)" autocomplete="email" />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
 
-            <div class="mb-3">
-                <label asp-for="Code" class="form-label"></label>
-                <input asp-for="Code" class="form-control" maxlength="10" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" />
-                <div class="form-text">10 characters. Case-sensitive. Allowed characters: letters, numbers, #, -.</div>
-                <span asp-validation-for="Code" class="text-danger"></span>
-            </div>
+        <div class="mb-3">
+            <label asp-for="Code" class="form-label"></label>
+            <input asp-for="Code" class="form-control" maxlength="10" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" />
+            <div class="form-text">10 characters. Case-sensitive.</div>
+            <span asp-validation-for="Code" class="text-danger"></span>
+        </div>
 
-            <button type="submit" class="btn btn-primary">Get Password</button>
-        </form>
-    </div>
-</div>
+        <button type="submit" class="btn btn-primary">Unlock credentials</button>
+    </form>
+
+    <p class="public-card__trust">Your credentials are deleted after retrieval or expiration.</p>
+</section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

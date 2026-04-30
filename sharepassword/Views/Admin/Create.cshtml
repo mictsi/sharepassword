@@ -1,57 +1,130 @@
 @model SharePassword.ViewModels.AdminCreateShareViewModel
 @{
     ViewData["Title"] = "Create Password Share";
+    var presetOptions = new (int Hours, string Label)[]
+    {
+        (1, "1 hour"),
+        (4, "4 hours"),
+        (8, "8 hours"),
+        (24, "1 day"),
+        (48, "2 days"),
+        (72, "3 days"),
+        (96, "4 days")
+    };
+    var selectedExpiryHours = presetOptions.Any(option => option.Hours == Model.ExpiryHours)
+        ? Model.ExpiryHours
+        : 4;
 }
 
-<h2>Create Password Share</h2>
-<p>Provide recipient email, username, secret text, instructions, and expiry time.</p>
-<p class="text-muted">Configured timezone: <strong>@ApplicationTime.TimeZoneId</strong>. Current application time: <strong>@ApplicationTime.Now.ToString("yyyy-MM-dd HH:mm:ss zzz")</strong>.</p>
-
-<form asp-action="Create" method="post">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-    <div class="mb-3">
-        <label asp-for="RecipientEmail" class="form-label"></label>
-        <input asp-for="RecipientEmail" class="form-control" maxlength="256" />
-        <span asp-validation-for="RecipientEmail" class="text-danger"></span>
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Step 1</div>
+        <h1 class="page-title">Create secure share</h1>
+        <p class="page-subtitle">Capture the recipient, the username, and the secret. The link and one-time access code will be shown separately after submission.</p>
     </div>
-
-    <div class="mb-3">
-        <label asp-for="SharedUsername" class="form-label"></label>
-        <input asp-for="SharedUsername" class="form-control" maxlength="256" />
-        <span asp-validation-for="SharedUsername" class="text-danger"></span>
+    <div class="page-header__actions">
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
     </div>
+</div>
 
-    <div class="mb-3">
-        <label asp-for="Password" class="form-label"></label>
-        <textarea asp-for="Password" class="form-control" rows="10" maxlength="1000" id="secretText"></textarea>
-        <div class="form-text" id="secretTextCounter">0 / 1000 characters (1000 left)</div>
-        <div class="text-danger d-none" id="secretTextWarning">Secret text is over the 1000 character limit.</div>
-        <span asp-validation-for="Password" class="text-danger"></span>
+<form asp-action="Create" method="post" class="create-share-form">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger app-validation-summary" role="alert"></div>
+
+    <div class="form-grid">
+        <section class="surface-card form-section">
+            <div class="form-section__header">
+                <h2 class="form-section__title">Recipient details</h2>
+                <p class="form-section__text">These fields control who receives the share and which account the recipient should expect to use.</p>
+            </div>
+
+            <div class="field-grid">
+                <div>
+                    <label asp-for="RecipientEmail" class="form-label"></label>
+                    <input asp-for="RecipientEmail" class="form-control" maxlength="256" autocomplete="email" />
+                    <span asp-validation-for="RecipientEmail" class="text-danger"></span>
+                </div>
+                <div>
+                    <label asp-for="SharedUsername" class="form-label"></label>
+                    <input asp-for="SharedUsername" class="form-control" maxlength="256" autocomplete="username" />
+                    <span asp-validation-for="SharedUsername" class="text-danger"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="surface-card form-section">
+            <div class="form-section__header">
+                <h2 class="form-section__title">Credentials and guidance</h2>
+                <p class="form-section__text">Use the secret field for passwords, API keys, or other one-time credentials. Add instructions only when the recipient needs context.</p>
+            </div>
+
+            <div>
+                <label asp-for="Password" class="form-label"></label>
+                <textarea asp-for="Password" class="form-control" rows="5" maxlength="1000" id="secretText"></textarea>
+                <div class="field-actions mt-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="generateSecretButton">Generate password</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clearSecretButton">Clear</button>
+                </div>
+                <div class="form-text mt-2" id="secretTextCounter">0 / 1000 characters (1000 left)</div>
+                <div class="text-danger d-none" id="secretTextWarning">Password or secret is over the 1000 character limit.</div>
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+
+            <div>
+                <label asp-for="Instructions" class="form-label"></label>
+                <textarea asp-for="Instructions" class="form-control" rows="5" maxlength="1000" id="instructionsText"></textarea>
+                <div class="form-text mt-2" id="instructionsTextCounter">0 / 1000 characters (1000 left)</div>
+                <div class="text-danger d-none" id="instructionsTextWarning">Instructions are over the 1000 character limit.</div>
+                <span asp-validation-for="Instructions" class="text-danger"></span>
+            </div>
+        </section>
+
+        <section class="surface-card form-section">
+            <div class="form-section__header">
+                <h2 class="form-section__title">Access controls</h2>
+                <p class="form-section__text">Choose how long the share should remain available and whether it also requires Microsoft Entra ID sign-in.</p>
+            </div>
+
+            <input asp-for="ExpiryHours" type="hidden" id="ExpiryHours" />
+
+            <div>
+                <label class="form-label">Expiration</label>
+                <div class="preset-grid">
+                    @foreach (var option in presetOptions)
+                    {
+                        <label class="preset-option">
+                            <input class="preset-option__input" type="radio" name="expiryPreset" value="@option.Hours" checked="@(selectedExpiryHours == option.Hours)" />
+                            <span class="preset-option__content">@option.Label</span>
+                        </label>
+                    }
+                </div>
+                <div class="form-text mt-3">Default access remains 4 hours unless you choose a longer window.</div>
+                <span asp-validation-for="ExpiryHours" class="text-danger"></span>
+            </div>
+
+            <div class="toggle-card">
+                <div class="form-check m-0">
+                    <input asp-for="RequireOidcLogin" class="form-check-input" />
+                </div>
+                <div>
+                    <label asp-for="RequireOidcLogin" class="form-check-label fw-semibold"></label>
+                    <div class="form-text mt-1">Require the signed-in Microsoft Entra ID account to match the recipient email before the access code can be used.</div>
+                    <span asp-validation-for="RequireOidcLogin" class="text-danger"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="surface-card surface-card--warning form-section">
+            <div class="form-section__header">
+                <h2 class="form-section__title">Delivery reminder</h2>
+                <p class="security-note">The access code is shown once. Send the link and access code through separate channels.</p>
+            </div>
+            <p class="form-section__text mb-0">Configured time zone: <strong>@ApplicationTime.TimeZoneId</strong>. Current application time: <strong>@ApplicationTime.Now.ToString("yyyy-MM-dd HH:mm:ss zzz")</strong>.</p>
+            <div class="action-row">
+                <button type="submit" class="btn btn-primary">Create secure share</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </section>
     </div>
-
-    <div class="mb-3">
-        <label asp-for="Instructions" class="form-label"></label>
-        <textarea asp-for="Instructions" class="form-control" rows="10" maxlength="1000" id="instructionsText"></textarea>
-        <div class="form-text" id="instructionsTextCounter">0 / 1000 characters (1000 left)</div>
-        <div class="text-danger d-none" id="instructionsTextWarning">Instructions are over the 1000 character limit.</div>
-        <span asp-validation-for="Instructions" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="ExpiryHours" class="form-label"></label>
-        <input asp-for="ExpiryHours" class="form-control" />
-        <span asp-validation-for="ExpiryHours" class="text-danger"></span>
-    </div>
-
-    <div class="form-check mb-3">
-        <input asp-for="RequireOidcLogin" class="form-check-input" />
-        <label asp-for="RequireOidcLogin" class="form-check-label"></label>
-        <span asp-validation-for="RequireOidcLogin" class="text-danger"></span>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Create Share</button>
-    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
 </form>
 
 @section Scripts {
@@ -59,6 +132,11 @@
     <script>
         (function () {
             const maxChars = 1000;
+            const expiryHours = document.getElementById("ExpiryHours");
+            const presetInputs = Array.from(document.querySelectorAll('input[name="expiryPreset"]'));
+            const secretInput = document.getElementById("secretText");
+            const generateButton = document.getElementById("generateSecretButton");
+            const clearButton = document.getElementById("clearSecretButton");
 
             function wireCounter(inputId, counterId, warningId) {
                 const input = document.getElementById(inputId);
@@ -87,8 +165,49 @@
                 updateCount();
             }
 
+            function syncExpiryValue() {
+                const selected = presetInputs.find((input) => input.checked);
+                if (!selected || !expiryHours) {
+                    return;
+                }
+
+                expiryHours.value = selected.value;
+            }
+
+            function generateSecret(length) {
+                const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@@$%*-_#";
+                const randomValues = new Uint32Array(length);
+                window.crypto.getRandomValues(randomValues);
+
+                return Array.from(randomValues, (value) => alphabet[value % alphabet.length]).join("");
+            }
+
             wireCounter("secretText", "secretTextCounter", "secretTextWarning");
             wireCounter("instructionsText", "instructionsTextCounter", "instructionsTextWarning");
+
+            presetInputs.forEach((input) => input.addEventListener("change", syncExpiryValue));
+
+            generateButton?.addEventListener("click", function () {
+                if (!secretInput) {
+                    return;
+                }
+
+                secretInput.value = generateSecret(20);
+                secretInput.dispatchEvent(new Event("input", { bubbles: true }));
+                secretInput.focus();
+            });
+
+            clearButton?.addEventListener("click", function () {
+                if (!secretInput) {
+                    return;
+                }
+
+                secretInput.value = "";
+                secretInput.dispatchEvent(new Event("input", { bubbles: true }));
+                secretInput.focus();
+            });
+
+            syncExpiryValue();
         })();
     </script>
 }

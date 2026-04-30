@@ -64,7 +64,7 @@ public class ShareController : Controller
             var oidcEmail = GetAuthenticatedEmail();
             if (string.IsNullOrWhiteSpace(oidcEmail))
             {
-                await _auditLogger.LogAsync("oidc-user", "unknown", "share.access", false, details: "OIDC-authenticated user has no usable email claim.");
+                await _auditLogger.LogAsync("oidc-user", "unknown", "share.access", false, details: "Microsoft Entra ID-authenticated user has no usable email claim.");
                 return Forbid();
             }
 
@@ -120,8 +120,8 @@ public class ShareController : Controller
             var oidcEmail = GetAuthenticatedEmail();
             if (string.IsNullOrWhiteSpace(oidcEmail))
             {
-                await _auditLogger.LogAsync("oidc-user", "unknown", "share.access", false, details: "OIDC-authenticated user has no usable email claim.");
-                ModelState.AddModelError(string.Empty, "Unable to resolve your Entra ID email from token claims.");
+                await _auditLogger.LogAsync("oidc-user", "unknown", "share.access", false, details: "Microsoft Entra ID-authenticated user has no usable email claim.");
+                ModelState.AddModelError(string.Empty, "Unable to resolve your Microsoft Entra ID email from token claims.");
                 return View(model);
             }
 
