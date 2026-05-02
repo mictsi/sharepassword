@@ -131,7 +131,7 @@ public class AdminController : Controller
     [HttpGet]
     public IActionResult Create()
     {
-        return View(new AdminCreateShareViewModel { ExpiryHours = _shareOptions.DefaultExpiryHours });
+        return View(BuildCreateModel(new AdminCreateShareViewModel { ExpiryHours = _shareOptions.DefaultExpiryHours }));
     }
 
     [HttpPost]
@@ -147,6 +147,8 @@ public class AdminController : Controller
         {
             ModelState.AddModelError(nameof(model.RequireOidcLogin), "Microsoft Entra ID sign-in must be enabled before requiring it for share links.");
         }
+
+        BuildCreateModel(model);
 
         if (!ModelState.IsValid)
         {
@@ -479,5 +481,16 @@ public class AdminController : Controller
     private string GetCurrentActorType()
     {
         return User.IsInRole(_adminRoleName) ? "admin" : "user";
+    }
+
+    private AdminCreateShareViewModel BuildCreateModel(AdminCreateShareViewModel model)
+    {
+        model.IsOidcLoginRequirementAvailable = _oidcAuthOptions.Enabled;
+        if (!_oidcAuthOptions.Enabled)
+        {
+            model.RequireOidcLogin = false;
+        }
+
+        return model;
     }
 }

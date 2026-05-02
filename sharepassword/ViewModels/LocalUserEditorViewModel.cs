@@ -7,7 +7,7 @@ public class LocalUserEditorViewModel
     public string DisplayName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public IReadOnlyCollection<string> AvailableRoles { get; set; } = Array.Empty<string>();
-    public IReadOnlyCollection<string> SelectedRoles { get; set; } = Array.Empty<string>();
+    public string[] SelectedRoles { get; set; } = [];
     public bool IsDisabled { get; set; }
     public bool IsSeededAdmin { get; set; }
     public DateTime? LastLoginAtUtc { get; set; }

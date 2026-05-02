@@ -102,11 +102,25 @@
 
             <div class="toggle-card">
                 <div class="form-check m-0">
-                    <input asp-for="RequireOidcLogin" class="form-check-input" />
+                    @if (Model.IsOidcLoginRequirementAvailable)
+                    {
+                        <input asp-for="RequireOidcLogin" class="form-check-input" />
+                    }
+                    else
+                    {
+                        <input asp-for="RequireOidcLogin" class="form-check-input" disabled="disabled" aria-disabled="true" />
+                    }
                 </div>
                 <div>
                     <label asp-for="RequireOidcLogin" class="form-check-label fw-semibold"></label>
-                    <div class="form-text mt-1">Require the signed-in Microsoft Entra ID account to match the recipient email before the access code can be used.</div>
+                    @if (Model.IsOidcLoginRequirementAvailable)
+                    {
+                        <div class="form-text mt-1">Require the signed-in Microsoft Entra ID account to match the recipient email before the access code can be used.</div>
+                    }
+                    else
+                    {
+                        <div class="form-text mt-1">Microsoft Entra ID sign-in is disabled in application configuration.</div>
+                    }
                     <span asp-validation-for="RequireOidcLogin" class="text-danger"></span>
                 </div>
             </div>

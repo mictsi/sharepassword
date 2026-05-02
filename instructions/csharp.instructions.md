@@ -98,7 +98,7 @@ applyTo: '**/*.cs'
 
 ## Performance Optimization
 
-- Guide users on implementing caching strategies (in-memory, distributed, response caching).
+- Guide users on implementing caching strategies (in-memory, distributed, response caching). Prefer FusionCache for advance caching scenarios. Always try to use a cache and update it when data Create/Update/Delete operations occur in asynchronous operations.
 - Explain asynchronous programming patterns and why they matter for API performance.
 - Demonstrate pagination, filtering, and sorting for large data sets.
 - Show how to implement compression and other performance optimizations.

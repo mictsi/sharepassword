@@ -102,8 +102,8 @@
 </section>
 
 <form method="post" asp-action="ResetPassword" class="surface-card form-section">
-    <input type="hidden" asp-for="ResetPassword!.UserId" />
-    <input type="hidden" asp-for="ResetPassword!.Username" />
+    <input type="hidden" name="UserId" value="@Model.ResetPassword!.UserId" />
+    <input type="hidden" name="Username" value="@Model.ResetPassword.Username" />
 
     <div class="form-section__header">
         <h2 class="surface-card__title">Reset password</h2>
@@ -112,12 +112,12 @@
 
     <div class="form-grid">
         <div>
-            <label asp-for="ResetPassword!.NewPassword" class="form-label"></label>
-            <input asp-for="ResetPassword!.NewPassword" class="form-control" type="password" autocomplete="new-password" />
+            <label for="ResetPassword_NewPassword" class="form-label">New password</label>
+            <input id="ResetPassword_NewPassword" name="NewPassword" class="form-control" type="password" autocomplete="new-password" />
         </div>
         <div>
-            <label asp-for="ResetPassword!.ConfirmPassword" class="form-label"></label>
-            <input asp-for="ResetPassword!.ConfirmPassword" class="form-control" type="password" autocomplete="new-password" />
+            <label for="ResetPassword_ConfirmPassword" class="form-label">Confirm password</label>
+            <input id="ResetPassword_ConfirmPassword" name="ConfirmPassword" class="form-control" type="password" autocomplete="new-password" />
         </div>
     </div>
 

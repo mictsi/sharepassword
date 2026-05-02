@@ -192,6 +192,141 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
+    public async Task AdminCreate_WhenOidcDisabled_RendersRequireOidcLoginReadOnly()
+    {
+        await using var factory = new ConfiguredApplicationWebApplicationFactory(new Dictionary<string, string?>
+        {
+            ["OidcAuth:Enabled"] = "false"
+        });
+
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = true,
+            AllowAutoRedirect = true
+        });
+
+        await LoginAsAdminAsync(client);
+
+        var html = await client.GetStringAsync("/admin/create");
+        var input = ExtractInputById(html, "RequireOidcLogin");
+
+        Assert.Contains("disabled=\"disabled\"", input, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("aria-disabled=\"true\"", input, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Microsoft Entra ID sign-in is disabled in application configuration.", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AdminCreate_WhenOidcEnabled_RendersRequireOidcLoginEditable()
+    {
+        await using var factory = new ConfiguredApplicationWebApplicationFactory(new Dictionary<string, string?>
+        {
+            ["OidcAuth:Enabled"] = "true"
+        });
+
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = true,
+            AllowAutoRedirect = true
+        });
+
+        await LoginAsAdminAsync(client);
+
+        var html = await client.GetStringAsync("/admin/create");
+        var input = ExtractInputById(html, "RequireOidcLogin");
+
+        Assert.DoesNotContain("disabled=", input, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Require the signed-in Microsoft Entra ID account to match the recipient email before the access code can be used.", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task UsersCreate_WithSelectedRole_CreatesLocalUser()
+    {
+        using var client = CreateClient();
+        await LoginAsAdminAsync(client);
+
+        var username = $"local-{Guid.NewGuid():N}";
+        var createPage = await client.GetStringAsync("/users/create");
+        var antiForgery = ExtractAntiForgeryToken(createPage);
+
+        var createRequest = new HttpRequestMessage(HttpMethod.Post, "/users/create")
+        {
+            Content = new FormUrlEncodedContent(
+            [
+                new KeyValuePair<string, string>("__RequestVerificationToken", antiForgery),
+                new KeyValuePair<string, string>("Username", username),
+                new KeyValuePair<string, string>("DisplayName", "Local User"),
+                new KeyValuePair<string, string>("Email", $"{username}@example.com"),
+                new KeyValuePair<string, string>("SelectedRoles", "User"),
+                new KeyValuePair<string, string>("NewPassword", "LocalPassword!123"),
+                new KeyValuePair<string, string>("ConfirmPassword", "LocalPassword!123")
+            ])
+        };
+
+        createRequest.Headers.Referrer = new Uri("https://localhost/users/create");
+        var createResponse = await client.SendAsync(createRequest);
+        var html = await createResponse.Content.ReadAsStringAsync();
+
+        createResponse.EnsureSuccessStatusCode();
+        Assert.Contains("User created.", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(username, html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("At least one built-in role must be selected.", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task UsersResetPassword_WithPostedResetFields_UpdatesPassword()
+    {
+        using var client = CreateClient();
+        await LoginAsAdminAsync(client);
+
+        var username = $"reset-{Guid.NewGuid():N}";
+        const string oldPassword = "OldLocalPassword!123";
+        const string newPassword = "NewLocalPassword!456";
+        var localUserService = _factory.Services.GetRequiredService<ILocalUserService>();
+        var createResult = await localUserService.CreateAsync(new LocalUserUpsertRequest
+        {
+            Username = username,
+            DisplayName = "Reset User",
+            Email = $"{username}@example.com",
+            Roles = ["User"],
+            Password = oldPassword
+        }, TestAdminAuth.Username);
+
+        Assert.True(createResult.Succeeded, createResult.ErrorMessage);
+
+        var editPage = await client.GetStringAsync($"/users/edit/{createResult.User!.Id}");
+        Assert.Contains("name=\"UserId\"", editPage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("name=\"ResetPassword.UserId\"", editPage, StringComparison.OrdinalIgnoreCase);
+        var antiForgery = ExtractAntiForgeryToken(editPage);
+
+        var resetRequest = new HttpRequestMessage(HttpMethod.Post, "/users/resetpassword")
+        {
+            Content = new FormUrlEncodedContent(
+            [
+                new KeyValuePair<string, string>("__RequestVerificationToken", antiForgery),
+                new KeyValuePair<string, string>("UserId", createResult.User.Id.ToString()),
+                new KeyValuePair<string, string>("Username", username),
+                new KeyValuePair<string, string>("NewPassword", newPassword),
+                new KeyValuePair<string, string>("ConfirmPassword", newPassword)
+            ])
+        };
+
+        resetRequest.Headers.Referrer = new Uri($"https://localhost/users/edit/{createResult.User.Id}");
+        var resetResponse = await client.SendAsync(resetRequest);
+        var html = await resetResponse.Content.ReadAsStringAsync();
+
+        resetResponse.EnsureSuccessStatusCode();
+        Assert.Contains("Password reset.", html, StringComparison.OrdinalIgnoreCase);
+
+        var oldPasswordAuthentication = await localUserService.AuthenticateAsync(username, oldPassword);
+        var newPasswordAuthentication = await localUserService.AuthenticateAsync(username, newPassword);
+
+        Assert.False(oldPasswordAuthentication.Succeeded);
+        Assert.True(newPasswordAuthentication.Succeeded, newPasswordAuthentication.ErrorMessage);
+    }
+
+    [Fact]
     public async Task Get_Health_ReturnsSuccess()
     {
         using var client = CreateClient();
@@ -554,6 +689,18 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         }
 
         return match.Groups["token"].Value;
+    }
+
+    private static string ExtractInputById(string html, string id)
+    {
+        var escapedId = Regex.Escape(id);
+        var match = Regex.Match(html, $"<input[^>]*id=\"{escapedId}\"[^>]*>", RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException($"Input '{id}' not found in HTML.");
+        }
+
+        return match.Value;
     }
 
     private static string ExtractShareIdFromCredentialPage(string html)

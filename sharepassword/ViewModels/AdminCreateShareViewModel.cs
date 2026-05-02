@@ -32,4 +32,6 @@ public class AdminCreateShareViewModel
 
     [Display(Name = "Require Microsoft Entra ID sign-in")]
     public bool RequireOidcLogin { get; set; }
+
+    public bool IsOidcLoginRequirementAvailable { get; set; }
 }
