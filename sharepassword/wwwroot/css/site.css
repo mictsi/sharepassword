@@ -958,7 +958,7 @@ textarea.form-control {
   margin-bottom: 1rem;
 }
 
-.totp-qr svg {
+.totp-qr img {
   width: min(100%, 18rem);
   height: auto;
 }

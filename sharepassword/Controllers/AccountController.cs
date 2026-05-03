@@ -239,7 +239,7 @@ public class AccountController : Controller
             Username = result.User.Username,
             SecretKey = result.Setup.SecretKey,
             ProvisioningUri = result.Setup.ProvisioningUri,
-            QrCodeSvg = result.Setup.QrCodeSvg,
+            QrCodeImageDataUri = result.Setup.QrCodeImageDataUri,
             IsConfirmed = HasConfirmedTotp(result.User),
             IsReplacingExistingSetup = HasConfirmedTotp(result.User),
             IsPendingLogin = pendingUserId.HasValue,
@@ -283,7 +283,7 @@ public class AccountController : Controller
         model.Username = setupResult.User.Username;
         model.SecretKey = setupResult.Setup.SecretKey;
         model.ProvisioningUri = setupResult.Setup.ProvisioningUri;
-        model.QrCodeSvg = setupResult.Setup.QrCodeSvg;
+        model.QrCodeImageDataUri = setupResult.Setup.QrCodeImageDataUri;
         model.IsConfirmed = HasConfirmedTotp(setupResult.User);
         model.IsReplacingExistingSetup = HasConfirmedTotp(setupResult.User);
         model.IsPendingLogin = pendingUserId.HasValue;

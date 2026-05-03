@@ -34,7 +34,7 @@
 
     <div class="form-grid">
         <div class="text-center totp-qr">
-            @Html.Raw(Model.QrCodeSvg)
+            <img src="@Model.QrCodeImageDataUri" alt="Authenticator app QR code" />
         </div>
         <div class="field-grid">
             <div>

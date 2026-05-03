@@ -84,6 +84,8 @@ public sealed class UnsupportedLocalUserService : ILocalUserService
 
     public Task EnsureBuiltInAdminAsync(string username, string passwordHash, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+    public Task EnsureTotpSecretsEncryptedAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     public Task<LocalUserAuthenticationResult> AuthenticateAsync(string username, string password, CancellationToken cancellationToken = default)
         => Task.FromResult(LocalUserAuthenticationResult.Failed("Local user management is only available for database-backed storage backends."));
 

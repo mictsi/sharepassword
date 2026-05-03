@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using OtpNet;
+using SharePassword.Data;
 using SharePassword.Models;
 using SharePassword.Services;
 
@@ -372,7 +373,7 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
 
         loginResponse.EnsureSuccessStatusCode();
         Assert.Contains("Authenticator app setup", setupHtml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<svg", setupHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("data:image/png;base64,", setupHtml, StringComparison.OrdinalIgnoreCase);
 
         var manualKey = ExtractTotpManualKey(setupHtml);
         var setupCode = ComputeTotpCode(manualKey);
@@ -460,6 +461,63 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         Assert.Equal(replacementManualKey, passwordCryptoService.Decrypt(reloadedUser.TotpSecretEncrypted));
         Assert.Equal(string.Empty, reloadedUser.PendingTotpSecretEncrypted);
         Assert.NotEqual(originalManualKey, passwordCryptoService.Decrypt(reloadedUser.TotpSecretEncrypted));
+    }
+
+    [Fact]
+    public async Task PlatformInitialization_EncryptsLegacyPlaintextTotpSecretsAtRest()
+    {
+        await using var factory = new SqliteTestWebApplicationFactory();
+        var dbContextFactory = factory.Services.GetRequiredService<ISharePasswordDbContextFactory>();
+        var localUserService = factory.Services.GetRequiredService<ILocalUserService>();
+        var passwordCryptoService = factory.Services.GetRequiredService<IPasswordCryptoService>();
+        var totpService = factory.Services.GetRequiredService<ITotpService>();
+        var userId = Guid.NewGuid();
+        var username = $"totp-legacy-{Guid.NewGuid():N}";
+        var confirmedSecret = totpService.GenerateSecretKey();
+        var pendingSecret = totpService.GenerateSecretKey();
+        var now = DateTime.UtcNow;
+
+        await using (var dbContext = await dbContextFactory.CreateDbContextAsync())
+        {
+            dbContext.LocalUsers.Add(new LocalUser
+            {
+                Id = userId,
+                Username = username,
+                DisplayName = "Legacy TOTP User",
+                Email = $"{username}@example.com",
+                PasswordHash = AdminPasswordHash.Create("TotpLegacy!123"),
+                Roles = "User",
+                IsDisabled = false,
+                IsSeededAdmin = false,
+                IsTotpRequired = true,
+                TotpSecretEncrypted = confirmedSecret,
+                TotpConfirmedAtUtc = now,
+                PendingTotpSecretEncrypted = pendingSecret,
+                PendingTotpCreatedAtUtc = now,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
+                LastPasswordResetAtUtc = now
+            });
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        await factory.Services.GetRequiredService<IPlatformInitializationService>().InitializeAsync();
+
+        LocalUser? reloaded;
+        await using (var dbContext = await dbContextFactory.CreateDbContextAsync())
+        {
+            reloaded = await dbContext.LocalUsers.FindAsync([userId]);
+        }
+
+        Assert.NotNull(reloaded);
+        Assert.NotEqual(confirmedSecret, reloaded.TotpSecretEncrypted);
+        Assert.NotEqual(pendingSecret, reloaded.PendingTotpSecretEncrypted);
+        Assert.Equal(confirmedSecret, passwordCryptoService.Decrypt(reloaded.TotpSecretEncrypted));
+        Assert.Equal(pendingSecret, passwordCryptoService.Decrypt(reloaded.PendingTotpSecretEncrypted));
+
+        var verifyResult = await localUserService.VerifyTotpAsync(userId, ComputeTotpCode(confirmedSecret), TestAdminAuth.Username);
+        Assert.True(verifyResult.Succeeded, verifyResult.ErrorMessage);
     }
 
     [Fact]

@@ -31,13 +31,14 @@ public sealed class TotpService : ITotpService
 
         using var qrGenerator = new QRCodeGenerator();
         using var qrCodeData = qrGenerator.CreateQrCode(provisioningUri, QRCodeGenerator.ECCLevel.Q);
-        using var qrCode = new SvgQRCode(qrCodeData);
+        using var qrCode = new PngByteQRCode(qrCodeData);
+        var qrCodePng = qrCode.GetGraphic(8);
 
         return new TotpSetupDetails
         {
             SecretKey = normalizedSecret,
             ProvisioningUri = provisioningUri,
-            QrCodeSvg = qrCode.GetGraphic(8)
+            QrCodeImageDataUri = $"data:image/png;base64,{Convert.ToBase64String(qrCodePng)}"
         };
     }
 

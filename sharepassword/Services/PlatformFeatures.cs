@@ -52,6 +52,7 @@ public interface ILocalUserService
     bool IsSupported { get; }
     IReadOnlyList<string> GetAvailableRoles();
     Task EnsureBuiltInAdminAsync(string username, string passwordHash, CancellationToken cancellationToken = default);
+    Task EnsureTotpSecretsEncryptedAsync(CancellationToken cancellationToken = default);
     Task<LocalUserAuthenticationResult> AuthenticateAsync(string username, string password, CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<LocalUser>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<LocalUser?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
@@ -178,7 +179,7 @@ public sealed class TotpSetupDetails
 {
     public string SecretKey { get; init; } = string.Empty;
     public string ProvisioningUri { get; init; } = string.Empty;
-    public string QrCodeSvg { get; init; } = string.Empty;
+    public string QrCodeImageDataUri { get; init; } = string.Empty;
 }
 
 public sealed class DashboardMetricsSnapshot

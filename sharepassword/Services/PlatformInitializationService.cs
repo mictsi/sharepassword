@@ -23,8 +23,14 @@ public sealed class PlatformInitializationService : IPlatformInitializationServi
     {
         await _systemConfigurationService.GetConfigurationAsync(cancellationToken);
 
-        if (_localUserService.IsSupported
-            && !string.IsNullOrWhiteSpace(_adminAuthOptions.Username)
+        if (!_localUserService.IsSupported)
+        {
+            return;
+        }
+
+        await _localUserService.EnsureTotpSecretsEncryptedAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(_adminAuthOptions.Username)
             && !string.IsNullOrWhiteSpace(_adminAuthOptions.PasswordHash))
         {
             await _localUserService.EnsureBuiltInAdminAsync(_adminAuthOptions.Username, _adminAuthOptions.PasswordHash, cancellationToken);

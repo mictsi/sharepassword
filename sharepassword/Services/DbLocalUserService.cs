@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SharePassword.Data;
@@ -90,6 +91,48 @@ public sealed class DbLocalUserService : ILocalUserService
                 existing.UpdatedAtUtc = now;
                 existing.LastPasswordResetAtUtc = now;
                 await dbContext.SaveChangesAsync(innerCancellationToken);
+            },
+            cancellationToken);
+    }
+
+    public async Task EnsureTotpSecretsEncryptedAsync(CancellationToken cancellationToken = default)
+    {
+        await ExecuteWriteAsync(
+            "ensure local user totp secrets are encrypted",
+            async innerCancellationToken =>
+            {
+                await using var dbContext = await _dbContextFactory.CreateDbContextAsync(innerCancellationToken);
+                var users = await dbContext.LocalUsers
+                    .Where(x => x.TotpSecretEncrypted != string.Empty || x.PendingTotpSecretEncrypted != string.Empty)
+                    .ToListAsync(innerCancellationToken);
+
+                var updatedSecretCount = 0;
+                var now = DateTime.UtcNow;
+
+                foreach (var user in users)
+                {
+                    if (TryEncryptPlaintextTotpSecret(user.TotpSecretEncrypted, out var encryptedTotpSecret))
+                    {
+                        user.TotpSecretEncrypted = encryptedTotpSecret;
+                        user.UpdatedAtUtc = now;
+                        updatedSecretCount++;
+                    }
+
+                    if (TryEncryptPlaintextTotpSecret(user.PendingTotpSecretEncrypted, out var encryptedPendingTotpSecret))
+                    {
+                        user.PendingTotpSecretEncrypted = encryptedPendingTotpSecret;
+                        user.UpdatedAtUtc = now;
+                        updatedSecretCount++;
+                    }
+                }
+
+                if (updatedSecretCount == 0)
+                {
+                    return;
+                }
+
+                await dbContext.SaveChangesAsync(innerCancellationToken);
+                _logger.LogInformation("Encrypted {TotpSecretCount} legacy local user TOTP secret value(s) at rest.", updatedSecretCount);
             },
             cancellationToken);
     }
@@ -743,6 +786,49 @@ public sealed class DbLocalUserService : ILocalUserService
         }
 
         return _passwordCryptoService.Decrypt(user.TotpSecretEncrypted);
+    }
+
+    private bool TryEncryptPlaintextTotpSecret(string storedValue, out string encryptedValue)
+    {
+        encryptedValue = storedValue;
+
+        if (string.IsNullOrWhiteSpace(storedValue) || CanDecrypt(storedValue))
+        {
+            return false;
+        }
+
+        var normalizedSecret = NormalizeTotpSecretCandidate(storedValue);
+        if (!LooksLikePlaintextTotpSecret(normalizedSecret))
+        {
+            return false;
+        }
+
+        encryptedValue = _passwordCryptoService.Encrypt(normalizedSecret);
+        return true;
+    }
+
+    private bool CanDecrypt(string storedValue)
+    {
+        try
+        {
+            _passwordCryptoService.Decrypt(storedValue);
+            return true;
+        }
+        catch (Exception exception) when (exception is FormatException or CryptographicException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static string NormalizeTotpSecretCandidate(string storedValue)
+    {
+        return storedValue.Trim().Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
+    }
+
+    private static bool LooksLikePlaintextTotpSecret(string value)
+    {
+        return value.Length is >= 16 and <= 128
+            && value.All(character => character is >= 'A' and <= 'Z' or >= '2' and <= '7');
     }
 
     private static LocalUser Clone(LocalUser source)

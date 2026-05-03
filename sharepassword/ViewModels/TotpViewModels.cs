@@ -7,7 +7,7 @@ public class TotpSetupViewModel
     public string Username { get; set; } = string.Empty;
     public string SecretKey { get; set; } = string.Empty;
     public string ProvisioningUri { get; set; } = string.Empty;
-    public string QrCodeSvg { get; set; } = string.Empty;
+    public string QrCodeImageDataUri { get; set; } = string.Empty;
     public bool IsConfirmed { get; set; }
     public bool IsReplacingExistingSetup { get; set; }
     public bool IsPendingLogin { get; set; }
