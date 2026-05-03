@@ -23,6 +23,82 @@ All notable changes to this project are documented in this file.
 ### Security
 - Client-encrypted shares store only opaque AES-GCM payloads on the server; the extra password is not submitted or persisted.
 
+## [0.5.1] - 2026-05-03
+
+### Changed
+- Improved the app brand logo size and visibility.
+- Refined the login page UI and password visibility toggle behavior.
+- Improved TOTP setup handling with encrypted secrets and updated QR code handling.
+- Added support for remote-IP local login policy checks.
+- Refactored database context creation and deployment script behavior.
+
+## [0.5.0] - 2026-05-02
+
+### Added
+- Added time-based one-time password (TOTP) support for local accounts.
+- Added authenticator onboarding, verification, reset, and profile flows.
+- Added database migrations for TOTP and security-related account metadata.
+- Added application settings for authenticator requirements and share failed-attempt pause behavior.
+- Added test coverage for TOTP and related user-management flows.
+
+### Changed
+- Improved OIDC login requirements for admin functionality.
+- Updated user management views and configuration UI to expose new security settings.
+
+## [0.4.0] - 2026-04-30
+
+### Added
+- Added platform features for local users, system configuration, usage metrics, and mail configuration.
+- Added database resilience abstractions and connectivity health checks.
+- Added provider-specific migrations for platform feature tables.
+- Added SMTP notification email service support.
+- Added local user management and profile views.
+- Added repository instruction files and agent guidance.
+
+### Changed
+- Renamed the main project from `sharepasswordAzure` to `sharepassword`.
+- Renamed the solution from `sharepasswordAzure.sln` to `sharepassword.sln`.
+- Refactored database operations to use `IDatabaseOperationRunner` for improved resilience and error handling.
+- Refactored the admin UI, shared layout, and styling for a broader platform-oriented experience.
+- Updated package references and release artifact workflow validation.
+
+## [0.3.2] - 2026-04-19
+
+### Added
+- Added audit log filtering by date range.
+- Added JSON export for audit log results.
+- Added test coverage for audit filter and export behavior.
+
+### Changed
+- Improved audit log page layout and filter controls.
+
+## [0.3.1] - 2026-04-19
+
+### Added
+- Added configurable application timezone support for displayed/admin-facing times.
+- Added access-code formatting service.
+
+### Changed
+- Updated generated access codes to `10` characters.
+- Updated create, access, audit, dashboard, and credential views to use configured application time.
+- Updated configuration documentation and deployment defaults for timezone settings.
+
+## [0.3.0] - 2026-04-19
+
+### Added
+- Added configurable application path base support for deployments under a subpath.
+- Added configurable authentication session timeout and sliding-expiration settings.
+- Added EF Core-backed storage support with SQLite, SQL Server, and PostgreSQL providers.
+- Added provider-specific migrations and database-backed share/audit stores.
+- Added database storage configuration sections and startup registration.
+- Added admin password hash generation script.
+- Added CI release artifact publishing improvements.
+
+### Changed
+- Reworked storage backend configuration.
+- Enforced hashed admin passwords using PBKDF2-SHA256 and removed plaintext admin password support.
+- Updated Docker, deployment, configuration, and README guidance for the new settings.
+
 ## [0.2.6] - 2026-02-25
 
 ### Added

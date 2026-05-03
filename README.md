@@ -16,8 +16,9 @@ Supported storage backends for both shares and audit logs:
 - `sharepassword/` — web application project
 - `sharepassword.Tests/` — test project
 - `.github/workflows/build.yml` — CI workflow
-- `CHANGELOG.md` — changelog
-- `RELEASE_NOTES.md` — consolidated release notes
+- `docs/CHANGELOG.md` — changelog
+- `docs/RELEASE_NOTES.md` — consolidated release notes
+- `docs/flowDiagram.md` — user flow diagram
 
 ## Quick start
 
@@ -28,6 +29,10 @@ dotnet run --project ./sharepassword/sharepassword.csproj
 
 For full configuration and usage instructions, see:
 
+- [docs/app-overview.md](docs/app-overview.md)
+- [docs/flowDiagram.md](docs/flowDiagram.md)
+- [docs/CHANGELOG.md](docs/CHANGELOG.md)
+- [docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md)
 - [sharepassword/README.md](sharepassword/README.md)
 - [sharepassword/CONFIGURATION.md](sharepassword/CONFIGURATION.md)
 
@@ -90,28 +95,10 @@ Example:
 
 The script prints the deployed app URL and Azure Portal URL on success.
 
-## 0.2.6 highlights
+## Release documentation
 
-- Added `Instructions` field for password shares with multiline formatting support and `1000` character limit.
-- Updated share retrieval view to show both `Secret text` and `Instructions` preserving formatting.
-- Added sharing guidance on the "Password Share Created" page for sending the recipient, link, and expiration time by email and the access code by SMS.
-- Hardened user input validation for token, access code, recipient email, and username lengths/formats.
+See [docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md) for release summaries and [docs/CHANGELOG.md](docs/CHANGELOG.md) for the full changelog.
 
-## Flowdiagram
+## User flow
 
-```mermaid
-flowchart TD
-    S1["1. Admin logs in"] --> S2["2. Admin creates a password share"]
-    S2 --> S3["3. App generates a secure link and access code"]
-    S3 --> S4["4. Admin sends recipient, link, and expiration by email"]
-    S4 --> S4A["5. Admin sends access code by SMS"]
-    S4A --> S5["6. Recipient opens link"]
-    S5 --> S6["7. Recipient enters email and access code"]
-    S6 --> S7["8. App verifies details"]
-    S7 --> S8["9. App shows username, secret text, and instructions"]
-    S8 --> S9["10. Recipient clicks: `"I have retrieved the password. Delete the password`""]
-    S9 --> S10{"11. Recipient confirms in dialog?"}
-    S10 -->|Yes| S11["12. App deletes the password"]
-    S10 -->|No| S12["13. Password remains until expiry"]
-    S12 --> S13["14. Share expires automatically after set time"]
-```
+See [docs/flowDiagram.md](docs/flowDiagram.md) for the current user flow diagram.

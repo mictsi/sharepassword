@@ -1,5 +1,4 @@
-
-## Simple user flow
+# User flow diagram
 
 ```mermaid
 flowchart TD

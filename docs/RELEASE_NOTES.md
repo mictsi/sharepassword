@@ -12,6 +12,114 @@ Database storage modernization work in progress for `sharepassword`.
 - Added automatic EF Core migration application during app startup.
 - Added optional browser-side encryption for high-sensitivity shares using an extra password.
 
+## v0.5.1
+
+Logo, login, TOTP setup, and deployment refinement release of `sharepassword`.
+
+### Highlights
+
+- Improved app brand logo sizing and visibility.
+- Refined the login page UI and password visibility toggle behavior.
+- Improved TOTP setup by encrypting authenticator secrets and updating QR code handling.
+- Added remote-IP support for local login policy checks.
+- Refactored database context creation and deployment script behavior.
+
+### Notes
+
+- Release date: 2026-05-03
+- Tag: `0.5.1`
+
+## v0.5.0
+
+Authenticator app and account security release of `sharepassword`.
+
+### Highlights
+
+- Added time-based one-time password (TOTP) support for local accounts.
+- Added authenticator onboarding, verification, reset, and profile management flows.
+- Added database migrations for TOTP and account security metadata.
+- Added settings for authenticator requirements and per-share failed-attempt pause behavior.
+- Improved OIDC login requirements and user management views.
+- Expanded integration test coverage for the new security flows.
+
+### Notes
+
+- Release date: 2026-05-02
+- Tag: `0.5.0`
+
+## v0.4.0
+
+Platform, database resilience, and project rename release of `sharepassword`.
+
+### Highlights
+
+- Renamed the main project from `sharepasswordAzure` to `sharepassword`.
+- Renamed the solution from `sharepasswordAzure.sln` to `sharepassword.sln`.
+- Added platform features for local users, system configuration, usage metrics, and mail configuration.
+- Added database resilience abstractions, connectivity health checks, and provider migrations for platform feature tables.
+- Added SMTP notification email service support.
+- Added local user management and profile views.
+- Refactored admin UI, shared layout, and styling for the expanded platform experience.
+- Updated package references and release artifact workflow validation.
+
+### Notes
+
+- Release date: 2026-04-30
+- Tag: `0.4.0`
+
+## v0.3.2
+
+Audit filtering and export release of `sharepassword`.
+
+### Highlights
+
+- Added audit log filtering by date range.
+- Added JSON export for filtered audit log results.
+- Improved audit log page layout and filter controls.
+- Added test coverage for audit filtering and export behavior.
+
+### Notes
+
+- Release date: 2026-04-19
+- Tag: `0.3.2`
+
+## v0.3.1
+
+Timezone and access-code format release of `sharepassword`.
+
+### Highlights
+
+- Added configurable application timezone support for displayed/admin-facing times.
+- Updated generated access codes to `10` characters.
+- Added access-code formatting service.
+- Updated create, access, audit, dashboard, and credential views to use configured application time.
+- Updated configuration documentation and deployment defaults for timezone settings.
+
+### Notes
+
+- Release date: 2026-04-19
+- Tag: `0.3.1`
+
+## v0.3.0
+
+Database storage, path base, and admin password hardening release of `sharepassword`.
+
+### Highlights
+
+- Added configurable application path base support for deployments under a subpath.
+- Added configurable authentication session timeout and sliding-expiration settings.
+- Added EF Core-backed storage support with SQLite, SQL Server, and PostgreSQL providers.
+- Added provider-specific migrations and database-backed share/audit stores.
+- Added database storage configuration sections and startup registration.
+- Added admin password hash generation script.
+- Enforced hashed admin passwords using PBKDF2-SHA256 and removed plaintext admin password support.
+- Improved CI release artifact publishing.
+
+### Notes
+
+- Release date: 2026-04-19
+- Tag: `0.3.0`
+
 ## v0.2.6
 
 Instructions field and input-hardening release of `sharepassword`.
