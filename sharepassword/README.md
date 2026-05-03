@@ -247,6 +247,37 @@ For array values (for example scopes), use indexed variables:
 - `OidcAuth__AdminGroups__0=<entra-group-id-for-admins>`
 - `OidcAuth__UserGroups__0=<entra-group-id-for-users>`
 
+#### Generate Docker env + compose from appsettings
+
+To generate Docker-friendly flattened settings from the current `appsettings.json`, run:
+
+```powershell
+pwsh ./scripts/generate-docker-assets.ps1
+```
+
+The generator writes these files under `artifacts/docker/`:
+
+- `start.sh`
+- `docker-compose.generated.yml`
+
+The generated files contain literal values from `appsettings.json`, including any configured secrets, so review them before sharing.
+
+The generator preserves the current application settings and applies container-safe overrides for `Application__EnableHttpsRedirection`, `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_URLS`, `Kestrel__Endpoints__Http__Url`, and the SQLite connection string when `Storage__Backend=sqlite`.
+
+The generated Compose file intentionally omits the flattened environment variables. Use the generated `start.sh` launcher to build the image and run the container with `docker run --env ...` arguments derived from `appsettings.json`.
+
+Start the app with the generated launcher:
+
+```bash
+bash ./artifacts/docker/start.sh
+```
+
+The generated Compose file is still written as a minimal reference for image, port, and volume settings:
+
+```powershell
+docker compose -f ./artifacts/docker/docker-compose.generated.yml config
+```
+
 ## Usage
 
 1. Open `/account/login` and sign in as admin.
