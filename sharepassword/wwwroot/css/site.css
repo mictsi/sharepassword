@@ -89,13 +89,12 @@ body {
 
 .app-brand__logo {
   display: block;
-  width: 4.25rem;
-  height: 4.25rem;
+  width: 5rem;
+  height: 5rem;
   object-fit: cover;
   object-position: center 35%;
   border-radius: 1.2rem;
   box-shadow: var(--sp-shadow-md);
-  background: rgba(255, 255, 255, 0.88);
 }
 
 .page-shell--admin .app-brand,
