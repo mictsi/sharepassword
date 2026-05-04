@@ -82,7 +82,7 @@ public class UsersController : Controller
         if (!result.Succeeded)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Unable to create the user.");
-            await _auditLogger.LogAsync("admin", actor, "local-user.create", false, details: result.ErrorMessage);
+            await _auditLogger.LogAsync("admin", actor, "local-user.create", false, details: result.AuditDetails);
             return View(BuildEditorModel(model));
         }
 
@@ -127,7 +127,7 @@ public class UsersController : Controller
         if (!result.Succeeded)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Unable to update the user.");
-            await _auditLogger.LogAsync("admin", actor, "local-user.update", false, targetType: "LocalUser", targetId: id.ToString(), details: result.ErrorMessage);
+            await _auditLogger.LogAsync("admin", actor, "local-user.update", false, targetType: "LocalUser", targetId: id.ToString(), details: result.AuditDetails);
             return View(BuildEditorModel(model));
         }
 
@@ -173,7 +173,7 @@ public class UsersController : Controller
         if (!result.Succeeded)
         {
             TempData["StatusMessage"] = result.ErrorMessage ?? "Password reset failed.";
-            await _auditLogger.LogAsync("admin", actor, "local-user.reset-password", false, targetType: "LocalUser", targetId: model.UserId.ToString(), details: result.ErrorMessage);
+            await _auditLogger.LogAsync("admin", actor, "local-user.reset-password", false, targetType: "LocalUser", targetId: model.UserId.ToString(), details: result.AuditDetails);
             return RedirectToAction(nameof(Edit), new { id = model.UserId });
         }
 
@@ -192,7 +192,7 @@ public class UsersController : Controller
         if (!result.Succeeded)
         {
             TempData["StatusMessage"] = result.ErrorMessage ?? "Unable to reset authenticator app setup.";
-            await _auditLogger.LogAsync("admin", actor, "local-user.totp.reset", false, targetType: "LocalUser", targetId: id.ToString(), details: result.ErrorMessage);
+            await _auditLogger.LogAsync("admin", actor, "local-user.totp.reset", false, targetType: "LocalUser", targetId: id.ToString(), details: result.AuditDetails);
             return RedirectToAction(nameof(Edit), new { id });
         }
 
@@ -211,7 +211,7 @@ public class UsersController : Controller
         if (!result.Succeeded)
         {
             TempData["StatusMessage"] = result.ErrorMessage ?? "Unable to delete the user.";
-            await _auditLogger.LogAsync("admin", actor, "local-user.delete", false, targetType: "LocalUser", targetId: id.ToString(), details: result.ErrorMessage);
+            await _auditLogger.LogAsync("admin", actor, "local-user.delete", false, targetType: "LocalUser", targetId: id.ToString(), details: result.AuditDetails);
             return RedirectToAction(nameof(Edit), new { id });
         }
 

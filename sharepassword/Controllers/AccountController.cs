@@ -183,7 +183,7 @@ public class AccountController : Controller
         var result = await _localUserService.VerifyTotpAsync(user.Id, model.Code, user.Username);
         if (!result.Succeeded || result.User is null)
         {
-            await _auditLogger.LogAsync("admin", user.Username, "local-user.totp.verify", false, targetType: "LocalUser", targetId: user.Id.ToString(), details: result.ErrorMessage);
+            await _auditLogger.LogAsync("admin", user.Username, "local-user.totp.verify", false, targetType: "LocalUser", targetId: user.Id.ToString(), details: result.AuditDetails);
             ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Invalid authenticator code.");
             return View(model);
         }
@@ -286,7 +286,7 @@ public class AccountController : Controller
         var confirmResult = await _localUserService.ConfirmTotpAsync(localUserId.Value, model.Code, GetCurrentUserIdentifier());
         if (!confirmResult.Succeeded || confirmResult.User is null)
         {
-            await _auditLogger.LogAsync(GetCurrentActorType(), model.Username, "local-user.totp.confirm", false, targetType: "LocalUser", targetId: localUserId.Value.ToString(), details: confirmResult.ErrorMessage);
+            await _auditLogger.LogAsync(GetCurrentActorType(), model.Username, "local-user.totp.confirm", false, targetType: "LocalUser", targetId: localUserId.Value.ToString(), details: confirmResult.AuditDetails);
             ModelState.AddModelError(string.Empty, confirmResult.ErrorMessage ?? "Invalid authenticator code.");
             return View(model);
         }

@@ -141,19 +141,22 @@ public sealed class LocalUserAuthenticationResult
 
 public sealed class LocalUserMutationResult
 {
-    private LocalUserMutationResult(bool succeeded, LocalUser? user, string? errorMessage)
+    private LocalUserMutationResult(bool succeeded, LocalUser? user, string? errorMessage, string? auditDetails)
     {
         Succeeded = succeeded;
         User = user;
         ErrorMessage = errorMessage;
+        AuditDetails = auditDetails;
     }
 
     public bool Succeeded { get; }
     public LocalUser? User { get; }
     public string? ErrorMessage { get; }
+    public string? AuditDetails { get; }
 
-    public static LocalUserMutationResult Success(LocalUser user) => new(true, user, null);
-    public static LocalUserMutationResult Failed(string errorMessage) => new(false, null, errorMessage);
+    public static LocalUserMutationResult Success(LocalUser user) => new(true, user, null, null);
+    public static LocalUserMutationResult Failed(string errorMessage) => new(false, null, errorMessage, errorMessage);
+    public static LocalUserMutationResult FailedWithAuditDetails(string errorMessage, string auditDetails) => new(false, null, errorMessage, auditDetails);
 }
 
 public sealed class LocalUserTotpSetupResult

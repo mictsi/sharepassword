@@ -9,6 +9,9 @@ namespace SharePassword.Services;
 
 public sealed class DbLocalUserService : ILocalUserService
 {
+    private const string PasswordPolicyAuditFailureDetails = "Password policy validation failed.";
+    private const string PasswordMutationAuditFailureDetails = "Password mutation failed.";
+
     private readonly ISharePasswordDbContextFactory _dbContextFactory;
     private readonly IDatabaseOperationRunner _databaseOperationRunner;
     private readonly IPasswordCryptoService _passwordCryptoService;
@@ -236,13 +239,13 @@ public sealed class DbLocalUserService : ILocalUserService
 
         if (string.IsNullOrWhiteSpace(request.Password))
         {
-            return LocalUserMutationResult.Failed("A password is required when creating a local user.");
+            return LocalUserMutationResult.FailedWithAuditDetails("A password is required when creating a local user.", PasswordPolicyAuditFailureDetails);
         }
 
         var passwordValidationErrors = LocalUserPasswordPolicy.Validate(request.Password);
         if (passwordValidationErrors.Count > 0)
         {
-            return LocalUserMutationResult.Failed(passwordValidationErrors[0]);
+            return LocalUserMutationResult.FailedWithAuditDetails(passwordValidationErrors[0], PasswordPolicyAuditFailureDetails);
         }
 
         var normalizedRoles = NormalizeRoles(request.Roles);
@@ -386,13 +389,13 @@ public sealed class DbLocalUserService : ILocalUserService
     {
         if (string.IsNullOrWhiteSpace(newPassword))
         {
-            return LocalUserMutationResult.Failed("A new password is required.");
+            return LocalUserMutationResult.FailedWithAuditDetails("A new password is required.", PasswordPolicyAuditFailureDetails);
         }
 
         var passwordValidationErrors = LocalUserPasswordPolicy.Validate(newPassword);
         if (passwordValidationErrors.Count > 0)
         {
-            return LocalUserMutationResult.Failed(passwordValidationErrors[0]);
+            return LocalUserMutationResult.FailedWithAuditDetails(passwordValidationErrors[0], PasswordPolicyAuditFailureDetails);
         }
 
         try
@@ -427,13 +430,13 @@ public sealed class DbLocalUserService : ILocalUserService
     {
         if (string.IsNullOrWhiteSpace(newPassword))
         {
-            return LocalUserMutationResult.Failed("A new password is required.");
+            return LocalUserMutationResult.FailedWithAuditDetails("A new password is required.", PasswordPolicyAuditFailureDetails);
         }
 
         var passwordValidationErrors = LocalUserPasswordPolicy.Validate(newPassword);
         if (passwordValidationErrors.Count > 0)
         {
-            return LocalUserMutationResult.Failed(passwordValidationErrors[0]);
+            return LocalUserMutationResult.FailedWithAuditDetails(passwordValidationErrors[0], PasswordPolicyAuditFailureDetails);
         }
 
         try
@@ -451,7 +454,7 @@ public sealed class DbLocalUserService : ILocalUserService
 
                     if (!AdminPasswordHash.Verify(currentPassword, user.PasswordHash))
                     {
-                        return LocalUserMutationResult.Failed("The current password is incorrect.");
+                        return LocalUserMutationResult.FailedWithAuditDetails("The current password is incorrect.", PasswordMutationAuditFailureDetails);
                     }
 
                     user.PasswordHash = AdminPasswordHash.Create(newPassword);

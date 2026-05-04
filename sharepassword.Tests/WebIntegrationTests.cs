@@ -477,6 +477,26 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
+    public async Task LocalUserCreate_WithWeakPassword_ReturnsAuditSafeFailureDetails()
+    {
+        var username = $"weak-service-{Guid.NewGuid():N}";
+        var localUserService = _factory.Services.GetRequiredService<ILocalUserService>();
+
+        var result = await localUserService.CreateAsync(new LocalUserUpsertRequest
+        {
+            Username = username,
+            DisplayName = "Weak Service User",
+            Email = $"{username}@example.com",
+            Roles = ["User"],
+            Password = "weak"
+        }, TestAdminAuth.Username);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Password must be at least 12 characters long.", result.ErrorMessage);
+        Assert.Equal("Password policy validation failed.", result.AuditDetails);
+    }
+
+    [Fact]
     public async Task UsersResetPassword_WithPostedResetFields_UpdatesPassword()
     {
         using var client = CreateClient();
@@ -526,6 +546,29 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
 
         Assert.False(oldPasswordAuthentication.Succeeded);
         Assert.True(newPasswordAuthentication.Succeeded, newPasswordAuthentication.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task LocalUserResetPassword_WithWeakPassword_ReturnsAuditSafeFailureDetails()
+    {
+        var username = $"weak-reset-{Guid.NewGuid():N}";
+        var localUserService = _factory.Services.GetRequiredService<ILocalUserService>();
+        var createResult = await localUserService.CreateAsync(new LocalUserUpsertRequest
+        {
+            Username = username,
+            DisplayName = "Weak Reset User",
+            Email = $"{username}@example.com",
+            Roles = ["User"],
+            Password = "InitialPassword!123"
+        }, TestAdminAuth.Username);
+
+        Assert.True(createResult.Succeeded, createResult.ErrorMessage);
+
+        var result = await localUserService.ResetPasswordAsync(createResult.User!.Id, "weak", TestAdminAuth.Username);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Password must be at least 12 characters long.", result.ErrorMessage);
+        Assert.Equal("Password policy validation failed.", result.AuditDetails);
     }
 
     [Fact]
