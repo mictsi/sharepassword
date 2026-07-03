@@ -482,6 +482,12 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         Assert.NotNull(request.LastSubmittedAtUtc);
         Assert.DoesNotContain(partnerResponse, request.EncryptedPartnerResponse, StringComparison.Ordinal);
 
+        var dashboardHtml = await client.GetStringAsync("/informationrequests");
+
+        Assert.Contains("request-table", dashboardHtml, StringComparison.Ordinal);
+        Assert.Contains(partnerEmail, dashboardHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Response received", dashboardHtml, StringComparison.OrdinalIgnoreCase);
+
         var detailsHtml = await client.GetStringAsync($"/informationrequests/details/{request.Id}");
 
         Assert.Contains(partnerResponse, detailsHtml, StringComparison.OrdinalIgnoreCase);
