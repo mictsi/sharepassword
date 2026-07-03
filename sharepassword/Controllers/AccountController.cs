@@ -316,7 +316,7 @@ public class AccountController : Controller
 
         if (User.IsInRole(_adminRoleName) || User.IsInRole(_userRoleName))
         {
-            return RedirectToAction("Index", "Admin");
+            return RedirectToAction("Index", "Dashboard");
         }
 
         if (CanAccessAuditLogs())

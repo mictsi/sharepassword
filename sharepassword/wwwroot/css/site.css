@@ -1401,6 +1401,106 @@ body.action-login {
   border-color: rgba(215, 227, 242, 0.9);
 }
 
+
+.admin-console-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.admin-console-card {
+  display: flex;
+  flex: 1 1 24rem;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 13rem;
+  padding: 1.5rem;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.admin-console-card:hover,
+.admin-console-card:focus-visible {
+  border-color: var(--sp-primary);
+  box-shadow: var(--sp-shadow-md);
+  color: inherit;
+  transform: translateY(-1px);
+}
+
+.admin-console-card__title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.admin-console-card__text {
+  margin: 0.8rem 0 1.25rem;
+  color: var(--sp-text-muted);
+}
+
+.admin-console-card__action {
+  color: var(--sp-primary);
+  font-weight: 800;
+}
+
+.controller-informationrequest.action-access .app-width--public {
+  width: min(100% - 2rem, 640px);
+}
+
+.controller-informationrequest.action-response .app-width--public {
+  width: min(100% - 2rem, 920px);
+}
+
+.controller-informationrequest.action-response .public-card--wide {
+  width: min(100%, 880px);
+}
+
+.information-request-response {
+  padding: clamp(1.25rem, 2vw, 2rem);
+}
+
+.information-request-access__summary,
+.information-request-summary {
+  margin-top: 1.2rem;
+}
+
+.information-request-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.information-request-form {
+  min-width: 0;
+}
+
+.information-request-editor textarea.form-control {
+  min-height: 16rem;
+  resize: vertical;
+}
+
+.information-request-protected {
+  border-color: rgba(31, 95, 191, 0.24);
+}
+
+#clientEncryptionReusedPasswordHelp {
+  margin-top: 0.75rem;
+  color: var(--sp-success);
+  font-weight: 700;
+}
+
+@media (min-width: 900px) {
+  .information-request-layout {
+    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+    align-items: start;
+  }
+
+  .information-request-form {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+}
 @media print {
   body {
     background: #ffffff;
@@ -1511,6 +1611,16 @@ body.action-login {
   .created-share-grid,
   .field-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-console-card {
+    flex-basis: 100%;
+    min-height: 11rem;
+  }
+
+  .controller-informationrequest.action-access .app-width--public,
+  .controller-informationrequest.action-response .app-width--public {
+    width: min(100% - 1.25rem, 920px);
   }
 
   .share-list__row {

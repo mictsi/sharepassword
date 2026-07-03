@@ -1,0 +1,158 @@
+@model SharePassword.ViewModels.AdminInformationRequestDetailsViewModel
+@{
+    ViewData["Title"] = "Information Request";
+    var createdLocal = ApplicationTime.ConvertUtcToApplicationTime(Model.CreatedAtUtc);
+    var expiresLocal = ApplicationTime.ConvertUtcToApplicationTime(Model.ExpiresAtUtc);
+    var submittedLocal = Model.LastSubmittedAtUtc.HasValue
+        ? ApplicationTime.ConvertUtcToApplicationTime(Model.LastSubmittedAtUtc.Value)
+        : (DateTimeOffset?)null;
+    var secretMask = Model.IsClientEncrypted
+        ? "Extra password required"
+        : new string('*', Math.Max(12, Math.Min(Model.PartnerResponse.Length, 32)));
+    var presetOptions = new (int Hours, string Label)[]
+    {
+        (1, "1 hour"),
+        (4, "4 hours"),
+        (8, "8 hours"),
+        (24, "1 day"),
+        (48, "2 days"),
+        (72, "3 days"),
+        (96, "4 days")
+    };
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Information request</div>
+        <h1 class="page-title">@Model.PartnerEmail</h1>
+        <p class="page-subtitle">Review the request instructions, submitted response, and expiration controls.</p>
+    </div>
+    <div class="page-header__actions">
+        <a asp-action="Index" class="btn btn-outline-secondary">Back to requests</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+{
+    <div class="alert alert-success" role="status">@Model.SuccessMessage</div>
+}
+
+<div class="summary-grid">
+    <section class="surface-card summary-card">
+        <span class="page-eyebrow">Status</span>
+        <span class="summary-card__value">@(Model.IsExpired ? "Expired" : Model.HasResponse ? "Submitted" : "Open")</span>
+        <span class="summary-card__meta">@(Model.HasResponse ? "A response has been submitted." : "No response has been submitted yet.")</span>
+    </section>
+    <section class="surface-card summary-card">
+        <span class="page-eyebrow">Created</span>
+        <span class="summary-card__value">@createdLocal.ToString("MMM dd")</span>
+        <span class="summary-card__meta">@($"{createdLocal:yyyy-MM-dd HH:mm} {ApplicationTime.TimeZoneId}")</span>
+    </section>
+    <section class="surface-card summary-card">
+        <span class="page-eyebrow">Expires</span>
+        <span class="summary-card__value">@expiresLocal.ToString("MMM dd")</span>
+        <span class="summary-card__meta">@($"{expiresLocal:yyyy-MM-dd HH:mm} {ApplicationTime.TimeZoneId}")</span>
+    </section>
+    <section class="surface-card summary-card">
+        <span class="page-eyebrow">Last update</span>
+        <span class="summary-card__value">@(submittedLocal.HasValue ? submittedLocal.Value.ToString("MMM dd") : "None")</span>
+        <span class="summary-card__meta">@(submittedLocal.HasValue ? $"{submittedLocal.Value:yyyy-MM-dd HH:mm} {ApplicationTime.TimeZoneId}" : "Waiting for partner")</span>
+    </section>
+</div>
+
+<section class="surface-card form-section">
+    <div class="form-section__header">
+        <h2 class="form-section__title">Request instructions</h2>
+    </div>
+    <div class="credential-notes">@Model.RequestInstructions</div>
+</section>
+
+<section class="surface-card form-section">
+    <div class="form-section__header">
+        <h2 class="form-section__title">Partner response</h2>
+        <p class="form-section__text">Client-encrypted responses require the extra password from the partner.</p>
+    </div>
+
+    @if (!Model.HasResponse)
+    {
+        <p class="form-section__text mb-0">No response has been submitted yet.</p>
+    }
+    else
+    {
+        @if (Model.IsClientEncrypted)
+        {
+            <textarea id="credentialSecretEncryptedPayload" class="visually-hidden" readonly aria-hidden="true">@Model.PartnerResponse</textarea>
+            <textarea id="credentialSecretRaw" class="visually-hidden" readonly aria-hidden="true"></textarea>
+            <div class="client-decryption-panel" data-client-decryption>
+                <div>
+                    <label for="clientDecryptionPassword" class="form-label">Extra password</label>
+                    <input type="password" class="form-control" id="clientDecryptionPassword" autocomplete="current-password" />
+                </div>
+                <div class="credential-actions">
+                    <button type="button" class="btn btn-primary" id="clientDecryptButton">Decrypt response</button>
+                </div>
+                <div class="encryption-status d-none" id="clientDecryptionStatus" role="status" aria-live="polite">
+                    <span class="encryption-status__spinner" aria-hidden="true"></span>
+                    <span data-decryption-status-text>Decrypting response...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <textarea id="credentialSecretRaw" class="visually-hidden" readonly aria-hidden="true">@Model.PartnerResponse</textarea>
+        }
+
+        <div id="credentialSecret" class="credential-secret" data-secret-source="credentialSecretRaw" data-secret-placeholder="@secretMask">
+            <pre class="credential-secret__output" data-secret-output>@secretMask</pre>
+        </div>
+        <div class="credential-actions">
+            <button type="button" class="btn btn-outline-secondary" data-secret-toggle="credentialSecret" data-show-label="Show" data-hide-label="Hide" @(Model.IsClientEncrypted ? "disabled" : null)>Show</button>
+            <button type="button" class="btn btn-outline-secondary" data-copy-target="credentialSecretRaw" data-copy-success="Response copied" @(Model.IsClientEncrypted ? "disabled" : null)>Copy</button>
+        </div>
+    }
+</section>
+
+<section class="surface-card form-section">
+    <div class="form-section__header">
+        <h2 class="form-section__title">Extend expiration</h2>
+        <p class="form-section__text">Add time from the current expiration, or from now if the request is already expired but has not been cleaned up.</p>
+    </div>
+
+    <form asp-action="Extend" method="post" class="form-section">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <div class="preset-grid">
+            @foreach (var option in presetOptions)
+            {
+                <label class="preset-option">
+                    <input class="preset-option__input" type="radio" name="extendHours" value="@option.Hours" checked="@(option.Hours == Model.ExtendHours)" />
+                    <span class="preset-option__content">@option.Label</span>
+                </label>
+            }
+        </div>
+        <div class="action-row">
+            <button type="submit" class="btn btn-primary">Extend expiration</button>
+        </div>
+    </form>
+</section>
+
+<section class="surface-card surface-card--danger form-section">
+    <div class="form-section__header">
+        <h2 class="form-section__title">Revoke request</h2>
+        <p class="surface-card__subtitle">This permanently removes the request and any submitted response.</p>
+    </div>
+    <form asp-action="Revoke" method="post" class="action-row" data-confirm="Revoke this information request? The link, access code, and submitted response will be deleted.">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <button type="submit" class="btn btn-outline-danger">Revoke request</button>
+    </form>
+</section>
+
+@section Scripts {
+    @if (Model.HasResponse && Model.IsClientEncrypted)
+    {
+        <script src="~/js/share-client-encryption.js" asp-append-version="true"></script>
+    }
+}

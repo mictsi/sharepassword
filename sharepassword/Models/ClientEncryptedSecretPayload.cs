@@ -7,7 +7,7 @@ public sealed class ClientEncryptedSecretPayload
 {
     public const int Version = 1;
     public const int KdfIterations = 310_000;
-    public const int MaxPayloadLength = 12_000;
+    public const int MaxPayloadLength = TextInputLimits.MaxClientEncryptedPayloadLength;
     public const string AlgorithmName = "AES-256-GCM";
     public const string KdfName = "PBKDF2-SHA256";
 
@@ -122,7 +122,7 @@ public sealed class ClientEncryptedSecretPayload
             return false;
         }
 
-        return decoded.Length is > 16 and <= 8192;
+        return decoded.Length is > 16 and <= TextInputLimits.MaxClientEncryptedCiphertextBytes;
     }
 
     private static bool TryDecodeBase64(string value, out byte[] decoded)

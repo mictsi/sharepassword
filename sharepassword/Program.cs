@@ -397,8 +397,13 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.MapControllerRoute(
+    name: "information-request-link",
+    pattern: "r/{token}",
+    defaults: new { controller = "InformationRequest", action = "Access" })
+    .WithStaticAssets();
+app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Admin}/{action=Index}/{id?}")
+    pattern: "{controller=Dashboard}/{action=Index}/{id?}")
     .WithStaticAssets();
 
 app.Run();

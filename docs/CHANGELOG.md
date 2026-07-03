@@ -5,6 +5,7 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added an information request workflow so app users can request external partner input through expiring secure links, 15-character access codes, audit logging, failed-attempt pauses, automatic cleanup, expiration extension, and optional browser-side response encryption.
 - Added EF Core-backed storage support for `sqlite`, `sqlserver`, and `postgresql`.
 - Added provider-specific migrations and automatic schema migration on application startup.
 - Added unified database persistence for both password shares and audit logs.
@@ -21,6 +22,7 @@ All notable changes to this project are documented in this file.
 - Reworked the admin dashboard's current-share layout so every share shows all metadata in a scalable list and uses `CREATED ON` / `EXPIRES ON` labels without repeating the timezone in each value.
 
 ### Security
+- Client-encrypted information request responses store only opaque AES-GCM payloads on the server; the extra password is not submitted or persisted.
 - Client-encrypted shares store only opaque AES-GCM payloads on the server; the extra password is not submitted or persisted.
 
 ## [0.5.1] - 2026-05-03

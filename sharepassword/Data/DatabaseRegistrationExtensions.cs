@@ -70,18 +70,20 @@ public static class DatabaseRegistrationExtensions
             }
 
             case StorageOptions.AzureBackend:
-                services.AddSingleton(new Func<IServiceProvider, SecretClient>(CreateSecretClient));
-                services.AddSingleton(new Func<IServiceProvider, TableServiceClient>(CreateTableServiceClient));
+                services.AddSingleton<SecretClient>(CreateSecretClient);
+                services.AddSingleton<TableServiceClient>(CreateTableServiceClient);
 
                 services.AddSingleton<KeyVaultStore>();
-                services.AddSingleton(new Func<IServiceProvider, IShareStore>(CreateKeyVaultShareStore));
+                services.AddSingleton<IShareStore>(CreateKeyVaultShareStore);
+                services.AddSingleton<IInformationRequestStore>(CreateKeyVaultInformationRequestStore);
                 services.AddSingleton<AuditTableStore>();
-                services.AddSingleton(new Func<IServiceProvider, IAuditLogReader>(CreateAuditTableLogReader));
-                services.AddSingleton(new Func<IServiceProvider, IAuditLogSink>(CreateAuditTableLogSink));
+                services.AddSingleton<IAuditLogReader>(CreateAuditTableLogReader);
+                services.AddSingleton<IAuditLogSink>(CreateAuditTableLogSink);
                 return services;
         }
 
         services.AddSingleton<IShareStore, DbShareStore>();
+        services.AddSingleton<IInformationRequestStore, DbInformationRequestStore>();
         services.AddSingleton<DbAuditStore>();
         services.AddSingleton(new Func<IServiceProvider, IAuditLogReader>(CreateDbAuditLogReader));
         services.AddSingleton(new Func<IServiceProvider, IAuditLogSink>(CreateDbAuditLogSink));
@@ -113,6 +115,9 @@ public static class DatabaseRegistrationExtensions
         provider.GetRequiredService<DbSystemConfigurationService>();
 
     private static IShareStore CreateKeyVaultShareStore(IServiceProvider provider) =>
+        provider.GetRequiredService<KeyVaultStore>();
+
+    private static IInformationRequestStore CreateKeyVaultInformationRequestStore(IServiceProvider provider) =>
         provider.GetRequiredService<KeyVaultStore>();
 
     private static IAuditLogReader CreateAuditTableLogReader(IServiceProvider provider) =>

@@ -71,7 +71,7 @@ Production hardening guide: `sharepassword/CONFIGURATION.md`
 - `DatabaseResilience:MaxAttempts`: total database attempts before failing a request or startup check (default `3`).
 - `DatabaseResilience:DelayMilliseconds`: wait time between database retry attempts (default `1000`).
 - `SqliteStorage:ConnectionString`: SQLite connection string.
-- `SqliteStorage:ApplyMigrationsOnStartup`: applies pending EF Core migrations when `Storage:Backend=sqlite`.
+- `SqliteStorage:ApplyMigrationsOnStartup`: applies pending EF Core migrations when `Storage:Backend=sqlite`. SQLite uses EF Core migration locking; if startup migration is interrupted, clear the `__EFMigrationsLock` table before retrying or apply migrations out of process.
 - `SqlServerStorage:ConnectionString`: SQL Server connection string.
 - `SqlServerStorage:ApplyMigrationsOnStartup`: applies pending EF Core migrations when `Storage:Backend=sqlserver`.
 - `PostgresqlStorage:ConnectionString`: PostgreSQL connection string.
@@ -144,7 +144,7 @@ For SQLite, SQL Server, or PostgreSQL:
 
 1. Set `Storage:Backend` to `sqlite`, `sqlserver`, or `postgresql`.
 2. Fill the matching `*Storage` section connection string.
-3. Set `ApplyMigrationsOnStartup=true` in that section if you want startup migration execution.
+3. Set `ApplyMigrationsOnStartup=true` in that section if you want startup migration execution. For SQLite, prefer applying migrations during maintenance or with a single app instance to avoid SQLite migration-lock waits.
 
 For Azure:
 
@@ -289,13 +289,13 @@ docker compose -f ./artifacts/docker/docker-compose.generated.yml config
 
 Secret text notes:
 
-- Max length is `1000` characters.
+- Max length is `10000` characters.
 - Multiline content is supported.
 - Plain text, special characters, YAML, and JSON formatting are preserved end-to-end.
 
 Instructions notes:
 
-- Max length is `1000` characters.
+- Max length is `10000` characters.
 - Multiline content is supported.
 - Plain text formatting and line breaks are preserved end-to-end.
 

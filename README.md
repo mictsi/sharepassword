@@ -5,7 +5,9 @@
 
 `sharepassword` helps teams share passwords and other sensitive text without leaving the secret in email, chat, or shared documents. An administrator creates a share with a recipient, secret text, optional instructions, and an expiration time. The app generates a unique access link and a separate one-time access code, so the link and code can be delivered through different channels.
 
-Recipients open the link, confirm their email address, and enter the access code before the secret is shown. Shares can be deleted after retrieval and expire automatically if they are not used. For higher-sensitivity secrets, the creator can protect a share with an extra password that encrypts the secret in the browser before it is sent to the server, so the stored database value is only an encrypted payload.
+Recipients open the link, confirm their email address, and enter the access code before the secret is shown. Shares can be deleted after retrieval and expire automatically if they are not used. After sign-in, `/Dashboard` opens a two-card admin start page for `Admin console - Password shares` and `Admin console - Information requests`.
+
+App users can also create information requests for external partners from the information-request admin console. Partners use a secure link and 15-character access code to submit or update information until expiration. If a submitted request is opened again, the partner is prompted to update the submitted request; protected responses can be decrypted once in the browser and then saved again without re-entering the extra password during that page session. For higher-sensitivity secrets or responses, the browser-side extra-password encryption option stores only an encrypted payload on the server.
 
 Secure password sharing app built with ASP.NET Core (.NET 10).
 

@@ -12,9 +12,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using OtpNet;
 using SharePassword.Data;
 using SharePassword.Models;
+using SharePassword.Options;
 using SharePassword.Services;
 
 namespace SharePassword.Tests;
@@ -397,6 +399,101 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         Assert.DoesNotContain("RejectedPlaintextSecret", createHtml, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task InformationRequest_CreateAndPartnerUpdate_AllowsRequesterToReadResponse()
+    {
+        using var client = CreateClient();
+        await LoginAsAdminAsync(client);
+
+        var partnerEmail = $"partner-{Guid.NewGuid():N}@example.com";
+        const string instructions = "Please provide the onboarding reference and billing contact.";
+        const string partnerResponse = "Reference ABC-123; billing contact is finance@example.com.";
+
+        var created = await CreateInformationRequestAsync(client, partnerEmail, instructions);
+
+        Assert.StartsWith("/r/", created.RequestPath, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(InformationRequestAccessCodeFormat.Length, created.AccessCode.Length);
+
+        var accessResponse = await AccessInformationRequestAsync(client, created.RequestPath, partnerEmail, created.AccessCode);
+        var responseHtml = await accessResponse.Content.ReadAsStringAsync();
+
+        accessResponse.EnsureSuccessStatusCode();
+        Assert.Contains(instructions, responseHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Available until", responseHtml, StringComparison.OrdinalIgnoreCase);
+
+        var updateResponse = await UpdateInformationRequestAsync(client, responseHtml, partnerEmail, created.AccessCode, partnerResponse);
+        var updateHtml = await updateResponse.Content.ReadAsStringAsync();
+
+        updateResponse.EnsureSuccessStatusCode();
+        Assert.Contains("Information saved.", updateHtml, StringComparison.OrdinalIgnoreCase);
+
+        var requestStore = _factory.Services.GetRequiredService<IInformationRequestStore>();
+        var request = (await requestStore.GetAllInformationRequestsAsync()).Single(x => x.PartnerEmail == partnerEmail);
+
+        Assert.Equal(SecretEncryptionModes.ServerManaged, request.ResponseEncryptionMode);
+        Assert.NotNull(request.LastSubmittedAtUtc);
+        Assert.DoesNotContain(partnerResponse, request.EncryptedPartnerResponse, StringComparison.Ordinal);
+
+        var detailsHtml = await client.GetStringAsync($"/informationrequests/details/{request.Id}");
+
+        Assert.Contains(partnerResponse, detailsHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Partner response", detailsHtml, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task InformationRequest_AccessExistingSubmission_ShowsUpdateSubmittedRequestPrompt()
+    {
+        using var client = CreateClient();
+        await LoginAsAdminAsync(client);
+
+        var partnerEmail = $"partner-update-{Guid.NewGuid():N}@example.com";
+        var created = await CreateInformationRequestAsync(client, partnerEmail, "Update the supplier contact details.");
+        var accessResponse = await AccessInformationRequestAsync(client, created.RequestPath, partnerEmail, created.AccessCode);
+        var responseHtml = await accessResponse.Content.ReadAsStringAsync();
+
+        accessResponse.EnsureSuccessStatusCode();
+
+        var updateResponse = await UpdateInformationRequestAsync(client, responseHtml, partnerEmail, created.AccessCode, "Supplier contact is operations@example.com.");
+        updateResponse.EnsureSuccessStatusCode();
+
+        var revisitHtml = await client.GetStringAsync(created.RequestPath);
+
+        Assert.Contains("Update submitted request", revisitHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Last submitted", revisitHtml, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task InformationRequest_WithClientEncryptedResponse_StoresOpaqueResponse()
+    {
+        using var client = CreateClient();
+        await LoginAsAdminAsync(client);
+
+        var partnerEmail = $"client-encrypted-response-{Guid.NewGuid():N}@example.com";
+        const string plaintextResponse = "Sensitive partner response that must not be stored by the server.";
+        var encryptedPayload = CreateValidClientEncryptedPayload();
+        var created = await CreateInformationRequestAsync(client, partnerEmail, "Upload the protected integration secret.");
+        var accessResponse = await AccessInformationRequestAsync(client, created.RequestPath, partnerEmail, created.AccessCode);
+        var responseHtml = await accessResponse.Content.ReadAsStringAsync();
+
+        var updateResponse = await UpdateInformationRequestAsync(client, responseHtml, partnerEmail, created.AccessCode, plaintextResponse, useClientEncryption: true, encryptedPayload: encryptedPayload);
+        var updateHtml = await updateResponse.Content.ReadAsStringAsync();
+
+        updateResponse.EnsureSuccessStatusCode();
+        Assert.Contains("Information saved.", updateHtml, StringComparison.OrdinalIgnoreCase);
+
+        var requestStore = _factory.Services.GetRequiredService<IInformationRequestStore>();
+        var request = (await requestStore.GetAllInformationRequestsAsync()).Single(x => x.PartnerEmail == partnerEmail);
+
+        Assert.Equal(SecretEncryptionModes.ClientAesGcm, request.ResponseEncryptionMode);
+        Assert.Equal(encryptedPayload, request.EncryptedPartnerResponse);
+        Assert.DoesNotContain(plaintextResponse, request.EncryptedPartnerResponse, StringComparison.Ordinal);
+
+        var detailsHtml = await client.GetStringAsync($"/informationrequests/details/{request.Id}");
+
+        Assert.Contains("Decrypt response", detailsHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Extra password required", detailsHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(plaintextResponse, detailsHtml, StringComparison.Ordinal);
+    }
     [Fact]
     public async Task UsersCreate_WithSelectedRole_CreatesLocalUser()
     {
@@ -1033,7 +1130,7 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         var recipientEmail = $"recipient-{Guid.NewGuid():N}@example.com";
         const string sharedUsername = "external.user";
         var prefix = "plain text line 1\nline 2 with symbols !@#$%^&*()[]{}<>\\\"'\n---\nkey: value\nlist:\n  - one\n  - two\n{\"json\":true,\"count\":2}\n";
-        var secret = prefix + new string('x', 1000 - prefix.Length);
+        var secret = prefix + new string('x', 10000 - prefix.Length);
 
         var created = await CreateShareAsync(client, recipientEmail, sharedUsername, secret);
         var accessResponse = await AccessShareAsync(client, created.SharePath, recipientEmail, created.AccessCode);
@@ -1199,7 +1296,43 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
-    public async Task SqliteProvider_AppliesMigrations_AndPersistsSharesAndAuditLogs()
+    public async Task SqliteProvider_InitializesSchema_AndPersistsInformationRequests()
+    {
+        await using var factory = new SqliteTestWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = true,
+            AllowAutoRedirect = true
+        });
+
+        await LoginAsAdminAsync(client);
+
+        var partnerEmail = $"sqlite-request-{Guid.NewGuid():N}@example.com";
+        const string instructions = "Return the supplier onboarding details.";
+        const string partnerResponse = "Supplier ID SUP-987 with primary contact procurement@example.com.";
+
+        var created = await CreateInformationRequestAsync(client, partnerEmail, instructions);
+        var accessResponse = await AccessInformationRequestAsync(client, created.RequestPath, partnerEmail, created.AccessCode);
+        var responseHtml = await accessResponse.Content.ReadAsStringAsync();
+        var updateResponse = await UpdateInformationRequestAsync(client, responseHtml, partnerEmail, created.AccessCode, partnerResponse);
+
+        updateResponse.EnsureSuccessStatusCode();
+
+        var requestStore = factory.Services.GetRequiredService<IInformationRequestStore>();
+        var request = (await requestStore.GetAllInformationRequestsAsync()).Single(x => x.PartnerEmail == partnerEmail);
+        var crypto = factory.Services.GetRequiredService<IPasswordCryptoService>();
+
+        Assert.Equal(SecretEncryptionModes.ServerManaged, request.ResponseEncryptionMode);
+        Assert.Equal(partnerResponse, crypto.Decrypt(request.EncryptedPartnerResponse));
+
+        var auditHtml = await client.GetStringAsync("/admin/audit");
+        Assert.Contains("information-request.create", auditHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("information-request.response.update", auditHtml, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SqliteProvider_InitializesSchema_AndPersistsSharesAndAuditLogs()
     {
         await using var factory = new SqliteTestWebApplicationFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -1303,6 +1436,86 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         return (ExtractSharePath(createHtml), ExtractAccessCode(createHtml));
     }
 
+    private static async Task<(string RequestPath, string AccessCode)> CreateInformationRequestAsync(
+        HttpClient client,
+        string partnerEmail,
+        string requestInstructions,
+        string pathBase = "")
+    {
+        var createPath = CombineAppPath(pathBase, "/informationrequests/create");
+        var createPage = await client.GetStringAsync(createPath);
+        var antiForgery = ExtractAntiForgeryToken(createPage);
+
+        var createRequest = new HttpRequestMessage(HttpMethod.Post, createPath)
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = antiForgery,
+                ["PartnerEmail"] = partnerEmail,
+                ["RequestInstructions"] = requestInstructions,
+                ["ExpiryHours"] = "4"
+            })
+        };
+
+        createRequest.Headers.Referrer = new Uri($"https://localhost{createPath}");
+        var createResponse = await client.SendAsync(createRequest);
+        var createHtml = await createResponse.Content.ReadAsStringAsync();
+
+        createResponse.EnsureSuccessStatusCode();
+        return (ExtractInformationRequestPath(createHtml), ExtractInformationRequestAccessCode(createHtml));
+    }
+
+    private static async Task<HttpResponseMessage> AccessInformationRequestAsync(HttpClient client, string requestPath, string email, string code)
+    {
+        var accessPage = await client.GetStringAsync(requestPath);
+        var antiForgery = ExtractAntiForgeryToken(accessPage);
+        var token = ExtractTokenFromAccessPage(accessPage);
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/informationrequest/access")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = antiForgery,
+                ["Email"] = email,
+                ["Code"] = code,
+                ["Token"] = token
+            })
+        };
+
+        request.Headers.Referrer = new Uri($"https://localhost{requestPath}");
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<HttpResponseMessage> UpdateInformationRequestAsync(
+        HttpClient client,
+        string responseHtml,
+        string email,
+        string code,
+        string partnerResponse,
+        bool useClientEncryption = false,
+        string? encryptedPayload = null)
+    {
+        var antiForgery = ExtractAntiForgeryToken(responseHtml);
+        var token = ExtractTokenFromAccessPage(responseHtml);
+        var fields = new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = antiForgery,
+            ["Token"] = token,
+            ["Email"] = email,
+            ["Code"] = code,
+            ["PartnerResponse"] = partnerResponse,
+            ["UseClientEncryption"] = useClientEncryption ? "true" : "false",
+            ["ClientEncryptedPartnerResponsePayload"] = encryptedPayload ?? string.Empty
+        };
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/informationrequest/update")
+        {
+            Content = new FormUrlEncodedContent(fields)
+        };
+
+        request.Headers.Referrer = new Uri("https://localhost/informationrequest/response");
+        return await client.SendAsync(request);
+    }
     private static async Task<HttpResponseMessage> AccessShareAsync(HttpClient client, string sharePath, string email, string code)
     {
         var accessPage = await client.GetStringAsync(sharePath);
@@ -1354,6 +1567,27 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         return Convert.ToBase64String(Enumerable.Repeat(value, length).ToArray());
     }
 
+    private static string ExtractInformationRequestPath(string html)
+    {
+        var match = Regex.Match(html, "https?://[^/\"<>]+(?<path>/(?:[^\"<>/]+/)*r/[a-z0-9]+)");
+        if (!match.Success)
+        {
+            throw new InvalidOperationException("Information request path not found in created page.");
+        }
+
+        return match.Groups["path"].Value;
+    }
+
+    private static string ExtractInformationRequestAccessCode(string html)
+    {
+        var match = Regex.Match(html, "id=\"createdRequestAccessCode\"[^>]*value=\"(?<code>[^\"]+)\"", RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException("Information request access code not found in created page.");
+        }
+
+        return WebUtility.HtmlDecode(match.Groups["code"].Value);
+    }
     private static string ExtractSharePath(string html)
     {
         var match = Regex.Match(html, "https?://[^/\"<>]+(?<path>/(?:[^\"<>/]+/)*s/[a-z0-9]+)");
@@ -1499,7 +1733,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             {
                 ["Storage:Backend"] = "sqlite",
                 ["SqliteStorage:ConnectionString"] = "Data Source=testwebfactory;Mode=Memory;Cache=Shared",
-                ["SqliteStorage:ApplyMigrationsOnStartup"] = "true",
+                ["SqliteStorage:ApplyMigrationsOnStartup"] = "false",
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
                 ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
@@ -1512,10 +1746,12 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IShareStore>();
+            services.RemoveAll<IInformationRequestStore>();
             services.RemoveAll<IAuditLogSink>();
             services.RemoveAll<IAuditLogReader>();
 
             services.AddSingleton<IShareStore, InMemoryShareStore>();
+            services.AddSingleton<IInformationRequestStore, InMemoryInformationRequestStore>();
             services.AddSingleton<InMemoryAuditStore>();
             services.AddSingleton<IAuditLogSink>(provider => provider.GetRequiredService<InMemoryAuditStore>());
             services.AddSingleton<IAuditLogReader>(provider => provider.GetRequiredService<InMemoryAuditStore>());
@@ -1601,7 +1837,7 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
             var overrides = new Dictionary<string, string?>
             {
                 ["Storage:Backend"] = "sqlite",
-                ["SqliteStorage:ApplyMigrationsOnStartup"] = "true",
+                ["SqliteStorage:ApplyMigrationsOnStartup"] = "false",
                 ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath}",
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
@@ -1612,6 +1848,13 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
 
             config.AddInMemoryCollection(overrides);
         });
+
+        builder.ConfigureTestServices(services =>
+        {
+            // SQLite migration locks can block indefinitely in test hosts; provider tests create the current schema directly.
+            services.RemoveAll<IPlatformInitializationService>();
+            services.AddSingleton<IPlatformInitializationService, TestSqlitePlatformInitializationService>();
+        });
     }
 
     protected override void Dispose(bool disposing)
@@ -1621,6 +1864,50 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
         if (disposing && Directory.Exists(_databaseDirectory))
         {
             Directory.Delete(_databaseDirectory, recursive: true);
+        }
+    }
+}
+
+internal sealed class TestSqlitePlatformInitializationService : IPlatformInitializationService
+{
+    private readonly ISharePasswordDbContextFactory _dbContextFactory;
+    private readonly ILocalUserService _localUserService;
+    private readonly ISystemConfigurationService _systemConfigurationService;
+    private readonly AdminAuthOptions _adminAuthOptions;
+
+    public TestSqlitePlatformInitializationService(
+        ISharePasswordDbContextFactory dbContextFactory,
+        ILocalUserService localUserService,
+        ISystemConfigurationService systemConfigurationService,
+        IOptions<AdminAuthOptions> adminAuthOptions)
+    {
+        _dbContextFactory = dbContextFactory;
+        _localUserService = localUserService;
+        _systemConfigurationService = systemConfigurationService;
+        _adminAuthOptions = adminAuthOptions.Value;
+    }
+
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await using (var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            dbContext.Database.EnsureCreated();
+        }
+
+        await _systemConfigurationService.GetConfigurationAsync(cancellationToken);
+
+        if (!_localUserService.IsSupported)
+        {
+            return;
+        }
+
+        await _localUserService.EnsureTotpSecretsEncryptedAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(_adminAuthOptions.Username)
+            && !string.IsNullOrWhiteSpace(_adminAuthOptions.PasswordHash))
+        {
+            await _localUserService.EnsureBuiltInAdminAsync(_adminAuthOptions.Username, _adminAuthOptions.PasswordHash, cancellationToken);
         }
     }
 }
@@ -1701,6 +1988,80 @@ internal sealed class InMemoryShareStore : IShareStore
     }
 }
 
+internal sealed class InMemoryInformationRequestStore : IInformationRequestStore
+{
+    private readonly ConcurrentDictionary<Guid, InformationRequest> _requests = new();
+
+    public Task<IReadOnlyCollection<InformationRequest>> GetAllInformationRequestsAsync(CancellationToken cancellationToken = default)
+    {
+        var list = _requests.Values
+            .Select(Clone)
+            .ToList()
+            .AsReadOnly();
+
+        return Task.FromResult<IReadOnlyCollection<InformationRequest>>(list);
+    }
+
+    public Task<InformationRequest?> GetInformationRequestByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        _requests.TryGetValue(id, out var request);
+        return Task.FromResult(request is null ? null : Clone(request));
+    }
+
+    public Task<InformationRequest?> GetInformationRequestByTokenAsync(string token, CancellationToken cancellationToken = default)
+    {
+        var request = _requests.Values.FirstOrDefault(x => x.AccessToken == token);
+        return Task.FromResult(request is null ? null : Clone(request));
+    }
+
+    public Task UpsertInformationRequestAsync(InformationRequest request, CancellationToken cancellationToken = default)
+    {
+        _requests[request.Id] = Clone(request);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteInformationRequestAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        _requests.TryRemove(id, out _);
+        return Task.CompletedTask;
+    }
+
+    public Task<int> DeleteExpiredInformationRequestsAsync(DateTime utcNow, CancellationToken cancellationToken = default)
+    {
+        var expiredIds = _requests.Values
+            .Where(x => x.ExpiresAtUtc <= utcNow)
+            .Select(x => x.Id)
+            .ToList();
+
+        foreach (var id in expiredIds)
+        {
+            _requests.TryRemove(id, out _);
+        }
+
+        return Task.FromResult(expiredIds.Count);
+    }
+
+    private static InformationRequest Clone(InformationRequest request)
+    {
+        return new InformationRequest
+        {
+            Id = request.Id,
+            PartnerEmail = request.PartnerEmail,
+            RequestInstructions = request.RequestInstructions,
+            EncryptedPartnerResponse = request.EncryptedPartnerResponse,
+            ResponseEncryptionMode = request.ResponseEncryptionMode,
+            AccessCodeHash = request.AccessCodeHash,
+            AccessToken = request.AccessToken,
+            CreatedAtUtc = request.CreatedAtUtc,
+            ExpiresAtUtc = request.ExpiresAtUtc,
+            LastSubmittedAtUtc = request.LastSubmittedAtUtc,
+            CreatedBy = request.CreatedBy,
+            RequireOidcLogin = request.RequireOidcLogin,
+            FailedAccessAttempts = request.FailedAccessAttempts,
+            AccessPausedUntilUtc = request.AccessPausedUntilUtc
+        };
+    }
+}
 internal sealed class InMemoryAuditStore : IAuditLogSink, IAuditLogReader
 {
     private readonly List<AuditLog> _logs = [];

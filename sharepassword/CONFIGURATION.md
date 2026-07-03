@@ -71,7 +71,7 @@ Set:
 
 ### SQLite
 
-Use only for small/single-instance deployments:
+Use only for small/single-instance deployments. SQLite startup migrations should run with a single application instance; if a migration is interrupted, clear the EF Core `__EFMigrationsLock` table before retrying:
 
 ```json
 "Storage": {

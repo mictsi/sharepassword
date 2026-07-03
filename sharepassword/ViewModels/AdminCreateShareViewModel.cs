@@ -16,7 +16,7 @@ public class AdminCreateShareViewModel
     [Display(Name = "Username")]
     public string SharedUsername { get; set; } = string.Empty;
 
-    [StringLength(1000, ErrorMessage = "Password or secret cannot exceed 1000 characters.")]
+    [StringLength(TextInputLimits.MaxPlaintextLength, ErrorMessage = "Password or secret cannot exceed 10000 characters.")]
     [DataType(DataType.MultilineText)]
     [Display(Name = "Password or secret")]
     public string Password { get; set; } = string.Empty;
@@ -24,10 +24,10 @@ public class AdminCreateShareViewModel
     [Display(Name = "Protect with extra password")]
     public bool UseClientEncryption { get; set; }
 
-    [StringLength(ClientEncryptedSecretPayload.MaxPayloadLength, ErrorMessage = "Encrypted secret payload cannot exceed 12000 characters.")]
+    [StringLength(ClientEncryptedSecretPayload.MaxPayloadLength, ErrorMessage = "Encrypted secret payload cannot exceed 60000 characters.")]
     public string ClientEncryptedPasswordPayload { get; set; } = string.Empty;
 
-    [StringLength(1000, ErrorMessage = "Instructions cannot exceed 1000 characters.")]
+    [StringLength(TextInputLimits.MaxPlaintextLength, ErrorMessage = "Instructions cannot exceed 10000 characters.")]
     [DataType(DataType.MultilineText)]
     [Display(Name = "Instructions")]
     public string Instructions { get; set; } = string.Empty;

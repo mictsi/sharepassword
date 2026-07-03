@@ -1,4 +1,4 @@
-﻿@using Microsoft.Extensions.Options
+@using Microsoft.Extensions.Options
 @using SharePassword.Options
 @using SharePassword.Services
 @using System.Security.Claims
@@ -9,7 +9,7 @@
     var controllerName = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "home").ToLowerInvariant();
     var actionName = (ViewContext.RouteData.Values["action"]?.ToString() ?? "index").ToLowerInvariant();
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
-    var isSharePage = controllerName == "share";
+    var isSharePage = controllerName == "share" || controllerName == "informationrequest";
     var isLoginPage = controllerName == "account" && actionName == "login";
     var isAdminShell = isAuthenticated && !isSharePage;
     var canManageShares = User.IsInRole(adminRoleName) || User.IsInRole(userRoleName);
@@ -77,9 +77,11 @@
 
                         @if (canManageShares)
                         {
-                            <div class="app-adminmenu__section-label">Workspace</div>
-                            <a class="dropdown-item app-adminmenu__item @(IsCurrent("Admin", "Index") ? "active" : null)" asp-controller="Admin" asp-action="Index" aria-current="@(IsCurrent("Admin", "Index") ? "page" : null)">Dashboard</a>
+                            <div class="app-adminmenu__section-label">Admin consoles</div>
+                            <a class="dropdown-item app-adminmenu__item @(IsCurrent("Admin", "Index") ? "active" : null)" asp-controller="Admin" asp-action="Index" aria-current="@(IsCurrent("Admin", "Index") ? "page" : null)">Admin console - Password shares</a>
                             <a class="dropdown-item app-adminmenu__item @(IsCurrent("Admin", "Create") ? "active" : null)" asp-controller="Admin" asp-action="Create" aria-current="@(IsCurrent("Admin", "Create") ? "page" : null)">Create secure share</a>
+                            <a class="dropdown-item app-adminmenu__item @(IsCurrent("InformationRequests", "Index") || IsCurrent("InformationRequests", "Details") ? "active" : null)" asp-controller="InformationRequests" asp-action="Index" aria-current="@(IsCurrent("InformationRequests", "Index") || IsCurrent("InformationRequests", "Details") ? "page" : null)">Admin console - Information requests</a>
+                            <a class="dropdown-item app-adminmenu__item @(IsCurrent("InformationRequests", "Create") ? "active" : null)" asp-controller="InformationRequests" asp-action="Create" aria-current="@(IsCurrent("InformationRequests", "Create") ? "page" : null)">Create information request</a>
                         }
 
                         <div class="app-adminmenu__section-label">Account</div>

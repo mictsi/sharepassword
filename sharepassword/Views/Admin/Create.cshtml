@@ -59,22 +59,22 @@
 
             <div>
                 <label asp-for="Password" class="form-label"></label>
-                <textarea asp-for="Password" class="form-control" rows="5" maxlength="1000" id="secretText"></textarea>
+                <textarea asp-for="Password" class="form-control" rows="5" maxlength="10000" id="secretText"></textarea>
                 <input asp-for="ClientEncryptedPasswordPayload" type="hidden" id="ClientEncryptedPasswordPayload" />
                 <div class="field-actions mt-2">
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="clearSecretButton">Clear</button>
                 </div>
-                <div class="form-text mt-2" id="secretTextCounter">0 / 1000 characters (1000 left)</div>
-                <div class="text-danger d-none" id="secretTextWarning">Password or secret is over the 1000 character limit.</div>
+                <div class="form-text mt-2" id="secretTextCounter">0 / 10000 characters (10000 left)</div>
+                <div class="text-danger d-none" id="secretTextWarning">Password or secret is over the 10000 character limit.</div>
                 <span asp-validation-for="Password" class="text-danger"></span>
                 <span asp-validation-for="ClientEncryptedPasswordPayload" class="text-danger"></span>
             </div>
 
             <div>
                 <label asp-for="Instructions" class="form-label"></label>
-                <textarea asp-for="Instructions" class="form-control" rows="5" maxlength="1000" id="instructionsText"></textarea>
-                <div class="form-text mt-2" id="instructionsTextCounter">0 / 1000 characters (1000 left)</div>
-                <div class="text-danger d-none" id="instructionsTextWarning">Instructions are over the 1000 character limit.</div>
+                <textarea asp-for="Instructions" class="form-control" rows="5" maxlength="10000" id="instructionsText"></textarea>
+                <div class="form-text mt-2" id="instructionsTextCounter">0 / 10000 characters (10000 left)</div>
+                <div class="text-danger d-none" id="instructionsTextWarning">Instructions are over the 10000 character limit.</div>
                 <span asp-validation-for="Instructions" class="text-danger"></span>
             </div>
         </section>

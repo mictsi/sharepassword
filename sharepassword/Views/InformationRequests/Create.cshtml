@@ -1,0 +1,128 @@
+@model SharePassword.ViewModels.AdminCreateInformationRequestViewModel
+@{
+    ViewData["Title"] = "Create Information Request";
+    var presetOptions = new (int Hours, string Label)[]
+    {
+        (1, "1 hour"),
+        (4, "4 hours"),
+        (8, "8 hours"),
+        (24, "1 day"),
+        (48, "2 days"),
+        (72, "3 days"),
+        (96, "4 days")
+    };
+    var selectedExpiryHours = presetOptions.Any(option => option.Hours == Model.ExpiryHours)
+        ? Model.ExpiryHours
+        : 4;
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Information request</div>
+        <h1 class="page-title">Request information</h1>
+        <p class="page-subtitle">Create a secure link and access code for an external partner to submit information until the request expires.</p>
+    </div>
+    <div class="page-header__actions">
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</div>
+
+<form asp-action="Create" method="post" class="create-share-form" data-client-encryption-create>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger app-validation-summary" role="alert"></div>
+
+    <div class="form-grid">
+        <section class="surface-card form-section">
+            <div class="form-section__header">
+                <h2 class="form-section__title">Partner details</h2>
+                <p class="form-section__text">The partner email is used with the access code to protect the request link.</p>
+            </div>
+
+            <div>
+                <label asp-for="PartnerEmail" class="form-label"></label>
+                <input asp-for="PartnerEmail" class="form-control" maxlength="256" autocomplete="email" />
+                <span asp-validation-for="PartnerEmail" class="text-danger"></span>
+            </div>
+        </section>
+
+        <section class="surface-card form-section">
+            <div class="form-section__header">
+                <h2 class="form-section__title">Instructions</h2>
+                <p class="form-section__text">Describe what the partner should provide. Do not include secrets that should remain hidden from server administrators.</p>
+            </div>
+
+            <div>
+                <label asp-for="RequestInstructions" class="form-label"></label>
+                <textarea asp-for="RequestInstructions" class="form-control" rows="6" maxlength="10000" id="instructionsText"></textarea>
+                <div class="form-text mt-2" id="instructionsTextCounter">0 / 10000 characters (10000 left)</div>
+                <div class="text-danger d-none" id="instructionsTextWarning">Instructions are over the 10000 character limit.</div>
+                <span asp-validation-for="RequestInstructions" class="text-danger"></span>
+            </div>
+        </section>
+
+        <section class="surface-card form-section">
+            <div class="form-section__header">
+                <h2 class="form-section__title">Access controls</h2>
+                <p class="form-section__text">Choose how long the partner can submit or update information.</p>
+            </div>
+
+            <input asp-for="ExpiryHours" type="hidden" id="ExpiryHours" />
+
+            <div>
+                <label class="form-label">Expiration</label>
+                <div class="preset-grid">
+                    @foreach (var option in presetOptions)
+                    {
+                        <label class="preset-option">
+                            <input class="preset-option__input" type="radio" name="expiryPreset" value="@option.Hours" checked="@(selectedExpiryHours == option.Hours)" />
+                            <span class="preset-option__content">@option.Label</span>
+                        </label>
+                    }
+                </div>
+                <div class="form-text mt-3">Default access remains 4 hours unless you choose a longer window.</div>
+                <span asp-validation-for="ExpiryHours" class="text-danger"></span>
+            </div>
+
+            <div class="toggle-card">
+                <div class="form-check m-0">
+                    @if (Model.IsOidcLoginRequirementAvailable)
+                    {
+                        <input asp-for="RequireOidcLogin" class="form-check-input" />
+                    }
+                    else
+                    {
+                        <input asp-for="RequireOidcLogin" class="form-check-input" disabled="disabled" aria-disabled="true" />
+                    }
+                </div>
+                <div>
+                    <label asp-for="RequireOidcLogin" class="form-check-label fw-semibold"></label>
+                    @if (Model.IsOidcLoginRequirementAvailable)
+                    {
+                        <div class="form-text mt-1">Require the signed-in Microsoft Entra ID account to match the partner email before the access code can be used.</div>
+                    }
+                    else
+                    {
+                        <div class="form-text mt-1">Microsoft Entra ID sign-in is disabled in application configuration.</div>
+                    }
+                    <span asp-validation-for="RequireOidcLogin" class="text-danger"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="surface-card surface-card--warning form-section">
+            <div class="form-section__header">
+                <h2 class="form-section__title">Delivery reminder</h2>
+                <p class="security-note">The access code is shown once. Send the link and access code through separate channels.</p>
+            </div>
+            <p class="form-section__text mb-0">Configured time zone: <strong>@ApplicationTime.TimeZoneId</strong>. Current application time: <strong>@ApplicationTime.Now.ToString("yyyy-MM-dd HH:mm:ss zzz")</strong>.</p>
+            <div class="action-row">
+                <button type="submit" class="btn btn-primary">Create information request</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </section>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/share-client-encryption.js" asp-append-version="true"></script>
+}

@@ -9,6 +9,10 @@ public sealed class DbUsageMetricsService : IUsageMetricsService
     public const string ShareCreatedKey = "share.created";
     public const string ShareAccessedKey = "share.accessed";
     public const string ShareRevokedKey = "share.revoked";
+    public const string InformationRequestCreatedKey = "information-request.created";
+    public const string InformationRequestResponseSubmittedKey = "information-request.response.submitted";
+    public const string InformationRequestRevokedKey = "information-request.revoked";
+    public const string ExpiredInformationRequestsDeletedKey = "information-request.expired.deleted";
     public const string AdminLoginKey = "admin.login.success";
     public const string UserLoginKey = "user.login.success";
     public const string ExpiredDeletedKey = "share.expired.deleted";

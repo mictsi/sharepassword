@@ -1,0 +1,128 @@
+@model SharePassword.ViewModels.InformationRequestResponseViewModel
+@{
+    ViewData["Title"] = "Information Request";
+    var expiresLocal = ApplicationTime.ConvertUtcToApplicationTime(Model.ExpiresAtUtc);
+    var submittedLocal = Model.LastSubmittedAtUtc.HasValue
+        ? ApplicationTime.ConvertUtcToApplicationTime(Model.LastSubmittedAtUtc.Value)
+        : (DateTimeOffset?)null;
+    var isUpdate = Model.HasResponse;
+    var submitLabel = isUpdate ? "Update submitted request" : "Save information";
+}
+
+<section class="public-card public-card--wide information-request-response">
+    <div class="page-eyebrow">Partner view</div>
+    <h1 class="page-title">Information request</h1>
+    <p class="page-subtitle">
+        @(isUpdate
+            ? "Review the submitted information and update it before the request expires."
+            : "Add the requested information before the expiration time.")
+    </p>
+
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="alert alert-success mt-3" role="status">@Model.SuccessMessage</div>
+    }
+
+    <section class="surface-card surface-card--info compact-banner information-request-summary">
+        <h2 class="surface-card__title">Available until @($"{expiresLocal:MMM dd, yyyy HH:mm}")</h2>
+        <p class="surface-card__subtitle">Time zone: @ApplicationTime.TimeZone.DisplayName (@ApplicationTime.TimeZoneId)</p>
+        @if (submittedLocal.HasValue)
+        {
+            <p class="surface-card__subtitle">Last updated @($"{submittedLocal.Value:MMM dd, yyyy HH:mm}").</p>
+        }
+    </section>
+
+    <div class="information-request-layout">
+        <section class="credential-field information-request-instructions">
+            <span class="credential-field__label">Instructions</span>
+            <div class="credential-notes">@Model.RequestInstructions</div>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ExistingClientEncryptedPartnerResponsePayload))
+        {
+            <section class="surface-card form-section information-request-protected" data-client-response-decryption>
+                <div class="form-section__header">
+                    <h2 class="form-section__title">Existing protected response</h2>
+                    <p class="form-section__text">Enter the extra password once to load the submitted response. The same password is reused in this browser when you save the update.</p>
+                </div>
+                <textarea id="existingResponseEncryptedPayload" class="visually-hidden" readonly aria-hidden="true">@Model.ExistingClientEncryptedPartnerResponsePayload</textarea>
+                <div>
+                    <label for="responseDecryptionPassword" class="form-label">Extra password</label>
+                    <input type="password" class="form-control" id="responseDecryptionPassword" autocomplete="current-password" />
+                </div>
+                <div class="credential-actions">
+                    <button type="button" class="btn btn-primary" id="responseDecryptButton">Decrypt response for editing</button>
+                </div>
+                <div class="encryption-status d-none" id="responseDecryptionStatus" role="status" aria-live="polite">
+                    <span class="encryption-status__spinner" aria-hidden="true"></span>
+                    <span data-response-decryption-status-text>Decrypting response...</span>
+                </div>
+            </section>
+        }
+
+        <form asp-action="Update" method="post" data-client-encryption-response class="information-request-form">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger app-validation-summary" role="alert"></div>
+            <input asp-for="RequestId" type="hidden" />
+            <input asp-for="Token" type="hidden" />
+            <input asp-for="Email" type="hidden" />
+            <input asp-for="Code" type="hidden" />
+            <input asp-for="RequireOidcLogin" type="hidden" />
+            <input asp-for="ClientEncryptedPartnerResponsePayload" type="hidden" id="ClientEncryptedPartnerResponsePayload" />
+
+            <section class="surface-card form-section information-request-editor">
+                <div class="form-section__header">
+                    <h2 class="form-section__title">@(isUpdate ? "Update submitted information" : "Information to share")</h2>
+                    <p class="form-section__text">You can update this information until the request expires.</p>
+                </div>
+
+                <div>
+                    <label asp-for="PartnerResponse" class="form-label"></label>
+                    <textarea asp-for="PartnerResponse" class="form-control" rows="10" maxlength="10000" id="PartnerResponse"></textarea>
+                    <div class="form-text mt-2" id="partnerResponseCounter">0 / 10000 characters (10000 left)</div>
+                    <div class="text-danger d-none" id="partnerResponseWarning">Information is over the 10000 character limit.</div>
+                    <span asp-validation-for="PartnerResponse" class="text-danger"></span>
+                    <span asp-validation-for="ClientEncryptedPartnerResponsePayload" class="text-danger"></span>
+                </div>
+
+                <div class="toggle-card toggle-card--protected">
+                    <div class="form-check m-0">
+                        <input asp-for="UseClientEncryption" class="form-check-input" id="UseClientEncryption" />
+                    </div>
+                    <div>
+                        <label asp-for="UseClientEncryption" class="form-check-label fw-semibold"></label>
+                        <div class="form-text mt-1">Encrypt the response in this browser before it is sent to the server. Share the extra password with the requester through a separate channel.</div>
+                    </div>
+                </div>
+
+                <div class="client-encryption-panel @(Model.UseClientEncryption ? null : "d-none")" id="clientEncryptionPanel">
+                    <div class="field-grid">
+                        <div>
+                            <label for="extraPassword" class="form-label">Extra password</label>
+                            <input type="password" class="form-control" id="extraPassword" autocomplete="new-password" minlength="12" />
+                            <div class="form-text mt-2">Minimum 12 characters.</div>
+                        </div>
+                        <div>
+                            <label for="confirmExtraPassword" class="form-label">Confirm extra password</label>
+                            <input type="password" class="form-control" id="confirmExtraPassword" autocomplete="new-password" minlength="12" />
+                        </div>
+                    </div>
+                    <div class="form-text d-none" id="clientEncryptionReusedPasswordHelp">Using the extra password from this browser session for this update.</div>
+
+                    <div class="encryption-status d-none" id="clientEncryptionStatus" role="status" aria-live="polite">
+                        <span class="encryption-status__spinner" aria-hidden="true"></span>
+                        <span data-encryption-status-text>Encrypting response...</span>
+                    </div>
+                </div>
+
+                <div class="action-row">
+                    <button type="submit" class="btn btn-primary">@submitLabel</button>
+                </div>
+            </section>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/share-client-encryption.js" asp-append-version="true"></script>
+}

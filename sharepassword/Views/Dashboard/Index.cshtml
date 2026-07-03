@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "Admin Console";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Admin console</div>
+        <h1 class="page-title">SharePassword administration</h1>
+        <p class="page-subtitle">Choose the console for the workflow you want to manage.</p>
+    </div>
+</div>
+
+<div class="admin-console-grid" aria-label="Admin consoles">
+    <a class="surface-card admin-console-card" asp-controller="Admin" asp-action="Index">
+        <span class="page-eyebrow">Password shares</span>
+        <h2 class="admin-console-card__title">Admin console - Password shares</h2>
+        <p class="admin-console-card__text">Create, monitor, and revoke one-time password and secret shares.</p>
+        <span class="admin-console-card__action">Open console</span>
+    </a>
+
+    <a class="surface-card admin-console-card" asp-controller="InformationRequests" asp-action="Index">
+        <span class="page-eyebrow">Information requests</span>
+        <h2 class="admin-console-card__title">Admin console - Information requests</h2>
+        <p class="admin-console-card__text">Create request links, review partner submissions, extend expiration, and revoke requests.</p>
+        <span class="admin-console-card__action">Open console</span>
+    </a>
+</div>

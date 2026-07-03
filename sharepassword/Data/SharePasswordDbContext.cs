@@ -20,6 +20,7 @@ public abstract class SharePasswordDbContext : DbContext
     }
 
     public DbSet<PasswordShare> PasswordShares => Set<PasswordShare>();
+    public DbSet<InformationRequest> InformationRequests => Set<InformationRequest>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<LocalUser> LocalUsers => Set<LocalUser>();
     public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();
@@ -35,7 +36,7 @@ public abstract class SharePasswordDbContext : DbContext
         shares.Property(x => x.SharedUsername).IsRequired().HasMaxLength(256);
         shares.Property(x => x.EncryptedPassword).IsRequired();
         shares.Property(x => x.SecretEncryptionMode).IsRequired().HasMaxLength(SecretEncryptionModes.MaxLength);
-        shares.Property(x => x.Instructions).HasMaxLength(1000);
+        shares.Property(x => x.Instructions).HasMaxLength(TextInputLimits.MaxPlaintextLength);
         shares.Property(x => x.AccessCodeHash).IsRequired().HasMaxLength(128);
         shares.Property(x => x.AccessToken).IsRequired().HasMaxLength(64);
         shares.Property(x => x.CreatedAtUtc).IsRequired().HasConversion(UtcDateTimeConverter);
@@ -49,6 +50,25 @@ public abstract class SharePasswordDbContext : DbContext
         shares.HasIndex(x => x.CreatedBy);
         shares.HasIndex(x => x.ExpiresAtUtc);
 
+        var informationRequests = modelBuilder.Entity<InformationRequest>();
+        informationRequests.ToTable("InformationRequests");
+        informationRequests.HasKey(x => x.Id);
+        informationRequests.Property(x => x.PartnerEmail).IsRequired().HasMaxLength(256);
+        informationRequests.Property(x => x.RequestInstructions).IsRequired().HasMaxLength(TextInputLimits.MaxPlaintextLength);
+        informationRequests.Property(x => x.EncryptedPartnerResponse).IsRequired();
+        informationRequests.Property(x => x.ResponseEncryptionMode).IsRequired().HasMaxLength(SecretEncryptionModes.MaxLength);
+        informationRequests.Property(x => x.AccessCodeHash).IsRequired().HasMaxLength(128);
+        informationRequests.Property(x => x.AccessToken).IsRequired().HasMaxLength(64);
+        informationRequests.Property(x => x.CreatedAtUtc).IsRequired().HasConversion(UtcDateTimeConverter);
+        informationRequests.Property(x => x.ExpiresAtUtc).IsRequired().HasConversion(UtcDateTimeConverter);
+        informationRequests.Property(x => x.LastSubmittedAtUtc).HasConversion(NullableUtcDateTimeConverter);
+        informationRequests.Property(x => x.CreatedBy).IsRequired().HasMaxLength(256);
+        informationRequests.Property(x => x.RequireOidcLogin).IsRequired();
+        informationRequests.Property(x => x.FailedAccessAttempts).IsRequired();
+        informationRequests.Property(x => x.AccessPausedUntilUtc).HasConversion(NullableUtcDateTimeConverter);
+        informationRequests.HasIndex(x => x.AccessToken).IsUnique();
+        informationRequests.HasIndex(x => x.CreatedBy);
+        informationRequests.HasIndex(x => x.ExpiresAtUtc);
         var auditLogs = modelBuilder.Entity<AuditLog>();
         auditLogs.ToTable("AuditLogs");
         auditLogs.HasKey(x => x.Id);

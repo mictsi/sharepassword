@@ -7,8 +7,18 @@ public class AccessCodeService : IAccessCodeService
 {
     public string GenerateCode()
     {
-        var bytes = RandomNumberGenerator.GetBytes(AccessCodeFormat.Length);
-        var chars = new char[AccessCodeFormat.Length];
+        return GenerateCode(AccessCodeFormat.Length);
+    }
+
+    public string GenerateCode(int length)
+    {
+        if (length <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), "Access code length must be greater than 0.");
+        }
+
+        var bytes = RandomNumberGenerator.GetBytes(length);
+        var chars = new char[length];
 
         for (var i = 0; i < chars.Length; i++)
         {

@@ -11,6 +11,7 @@ Database storage modernization work in progress for `sharepassword`.
 - Added per-backend configuration sections with an Azure-specific Key Vault + Table Storage layout.
 - Added automatic EF Core migration application during app startup.
 - Added optional browser-side encryption for high-sensitivity shares using an extra password.
+- Added an information request workflow for collecting partner-provided information through expiring secure links, 15-character access codes, audit logging, cleanup, expiration extension, and optional browser-side response encryption.
 
 ## v0.5.1
 
