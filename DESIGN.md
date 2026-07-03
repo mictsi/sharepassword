@@ -4,7 +4,7 @@ This document describes the current design of the SharePassword application. It 
 
 ## Purpose
 
-SharePassword is an ASP.NET Core MVC application for sharing temporary secrets without putting the secret directly in email, chat, or tickets. A signed-in sender creates a share for a recipient. The recipient opens a unique link and proves access with their email address plus a separate one-time access code. Shares expire automatically and can also be revoked or deleted after retrieval. The application also supports information requests, where a signed-in app user asks an external partner to submit or update temporary information through a secure request link.
+SharePassword is an ASP.NET Core MVC application for sharing temporary secrets without putting the secret directly in email, chat, or tickets. A signed-in sender creates a share for a recipient. The recipient opens a unique link and proves access with their email address plus a separate one-time access code. Shares expire automatically and can also be revoked or deleted after retrieval. The application also supports information requests, where a signed-in app user asks an external user to submit or update temporary information through a secure request link.
 
 For higher-sensitivity shares, the sender can enable browser-side encryption with an extra password. In that mode, the browser encrypts the secret before form submission, the server stores only the encrypted client payload, and the recipient must know the extra password to decrypt the secret in their browser.
 
@@ -36,12 +36,12 @@ For higher-sensitivity shares, the sender can enable browser-side encryption wit
 
 `Program.cs` is the composition root. It validates critical options, registers storage based on configuration, configures authentication and authorization policies, runs storage startup checks or migrations, initializes platform data, and wires the MVC routes.
 
-The authenticated start page is `/Dashboard`, which links to the two operational consoles: `Admin console - Password shares` and `Admin console - Information requests`. `/InformationRequests` is the admin console for request-information workflows, not a partner workspace.
+The authenticated start page is `/Dashboard`, which links to the two operational consoles: `Admin console - Password shares` and `Admin console - Information requests`. `/InformationRequests` is the admin console for request-information workflows, not a user workspace.
 
 The main service boundaries are:
 
 - `IShareStore`: creates, loads, updates, and deletes password shares.
-- `IInformationRequestStore`: creates, loads, updates, and deletes information requests and submitted partner responses.
+- `IInformationRequestStore`: creates, loads, updates, and deletes information requests and submitted user responses.
 - `IAuditLogSink` and `IAuditLogReader`: persist and read audit events.
 - `IPasswordCryptoService`: encrypts and decrypts server-managed secrets at rest.
 - `IAccessCodeService`: generates and verifies access codes.
@@ -94,11 +94,11 @@ Database-backed operations flow through `IDatabaseOperationRunner`, which centra
 - optional OIDC requirement
 - failed-attempt pause state
 
-`InformationRequest` is the central business entity for collecting temporary partner-provided information. It contains:
+`InformationRequest` is the central business entity for collecting temporary user-provided information. It contains:
 
-- partner email
+- user email
 - request instructions
-- encrypted partner response payload
+- encrypted user response payload
 - server-managed or client-encrypted response mode
 - hashed access code
 - random access token for the request URL
@@ -141,17 +141,17 @@ All persisted `DateTime` values in EF Core are normalized to UTC through model c
 ### Create Information Request
 
 1. A local or OIDC-authenticated user opens `Admin console - Information requests`.
-2. The requester creates a request with partner email, instructions, expiry, and optional OIDC/client-encryption controls.
+2. The requester creates a request with user email, instructions, expiry, and optional OIDC/client-encryption controls.
 3. The app generates a request token and a 15-character access code.
-4. `IInformationRequestStore` persists the request without a partner response.
+4. `IInformationRequestStore` persists the request without a user response.
 5. Audit and metric events are recorded.
 6. The created page shows the request link and access code so they can be delivered over separate channels.
 
 ### Submit Or Update Information Request
 
-1. The partner opens `/r/{token}`.
+1. The user opens `/r/{token}`.
 2. The access page indicates whether the request is new or already has submitted information.
-3. The partner proves access with their email plus access code, or with OIDC plus the access code when OIDC is required.
+3. The user proves access with their email plus access code, or with OIDC plus the access code when OIDC is required.
 4. The response page shows instructions, expiration, and any existing response that can be updated until expiration.
 5. Server-managed responses are decrypted server-side into the edit field after successful access.
 6. Client-encrypted responses require the extra password to decrypt in the browser. After successful browser decryption, the same extra password is held only in page memory and reused when saving the update during that page session.
@@ -185,7 +185,7 @@ When OIDC is enabled, non-local visits to the local login page are redirected to
 
 Server-managed share secrets are encrypted at rest using AES-GCM. `PasswordCryptoService` derives a 256-bit key from `Encryption:Passphrase` and a per-secret random salt with PBKDF2-SHA256. Each encryption uses a random nonce and stores salt, nonce, tag, and ciphertext as one base64 payload.
 
-Client-encrypted shares and information-request responses use Web Crypto in `wwwroot/js/share-client-encryption.js`. The browser derives an AES-GCM key from the extra password with PBKDF2-SHA256, encrypts the secret or response locally, and submits a JSON payload containing version, algorithm, KDF metadata, salt, nonce, and ciphertext. The extra password is never sent to the server. For information-request updates, a successfully used response decryption password can be retained only in browser memory for the current page session so the partner can save the edited response without typing it again.
+Client-encrypted shares and information-request responses use Web Crypto in `wwwroot/js/share-client-encryption.js`. The browser derives an AES-GCM key from the extra password with PBKDF2-SHA256, encrypts the secret or response locally, and submits a JSON payload containing version, algorithm, KDF metadata, salt, nonce, and ciphertext. The extra password is never sent to the server. For information-request updates, a successfully used response decryption password can be retained only in browser memory for the current page session so the user can save the edited response without typing it again.
 
 Client-side encryption protects stored data from database readers, backups, and operators who cannot alter delivered client code. It does not protect against a server or administrator that can change the JavaScript served to the browser.
 

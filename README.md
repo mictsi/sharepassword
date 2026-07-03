@@ -7,7 +7,7 @@
 
 Recipients open the link, confirm their email address, and enter the access code before the secret is shown. Shares can be deleted after retrieval and expire automatically if they are not used. After sign-in, `/Dashboard` opens a two-card admin start page for `Admin console - Password shares` and `Admin console - Information requests`.
 
-App users can also create information requests for external partners from the information-request admin console. Partners use a secure link and 15-character access code to submit or update information until expiration. If a submitted request is opened again, the partner is prompted to update the submitted request; protected responses can be decrypted once in the browser and then saved again without re-entering the extra password during that page session. For higher-sensitivity secrets or responses, the browser-side extra-password encryption option stores only an encrypted payload on the server.
+App users can also create information requests for external users from the information-request admin console. External users use a secure link and 15-character access code to submit or update information until expiration. If a submitted request is opened again, the user is prompted to update the submitted request; protected responses can be decrypted once in the browser and then saved again without re-entering the extra password during that page session. For higher-sensitivity secrets or responses, the browser-side extra-password encryption option stores only an encrypted payload on the server.
 
 Secure password sharing app built with ASP.NET Core (.NET 10).
 

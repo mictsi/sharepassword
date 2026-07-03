@@ -421,16 +421,28 @@
         const panel = document.getElementById("clientEncryptionPanel");
         const extraPassword = document.getElementById("extraPassword");
         const confirmExtraPassword = document.getElementById("confirmExtraPassword");
-        const reusedPasswordHelp = document.getElementById("clientEncryptionReusedPasswordHelp");
         const status = document.getElementById("clientEncryptionStatus");
         const submitButtons = Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+
+        function isClientEncryptionEnabled() {
+            if (!useClientEncryption) {
+                return false;
+            }
+
+            if (useClientEncryption.type === "checkbox") {
+                return useClientEncryption.checked;
+            }
+
+            return useClientEncryption.value === "true";
+        }
+
 
         function hasRememberedPassword() {
             return Boolean(rememberedInformationRequestExtraPassword);
         }
 
         function setClientEncryptionUi() {
-            const enabled = Boolean(useClientEncryption && useClientEncryption.checked);
+            const enabled = isClientEncryptionEnabled();
             const useRememberedPassword = enabled && hasRememberedPassword();
             if (panel) {
                 panel.classList.toggle("d-none", !enabled);
@@ -444,10 +456,6 @@
             if (confirmExtraPassword) {
                 confirmExtraPassword.required = enabled && !useRememberedPassword;
                 confirmExtraPassword.disabled = useRememberedPassword;
-            }
-
-            if (reusedPasswordHelp) {
-                reusedPasswordHelp.classList.toggle("d-none", !useRememberedPassword);
             }
 
             if (!enabled) {
@@ -475,7 +483,7 @@
         setClientEncryptionUi();
 
         form.addEventListener("submit", async function (event) {
-            if (!useClientEncryption || !useClientEncryption.checked) {
+            if (!isClientEncryptionEnabled()) {
                 if (encryptedPayload) {
                     encryptedPayload.value = "";
                 }
@@ -489,7 +497,7 @@
                 return;
             }
 
-            if (!responseInput || !encryptedPayload || !extraPassword || !confirmExtraPassword) {
+            if (!responseInput || !encryptedPayload) {
                 setStatus(status, "Browser encryption controls are unavailable.", "error");
                 return;
             }
@@ -505,14 +513,19 @@
                 return;
             }
 
-            const passwordForEncryption = rememberedInformationRequestExtraPassword || extraPassword.value;
+            const passwordForEncryption = rememberedInformationRequestExtraPassword || extraPassword?.value || "";
             if (!passwordForEncryption) {
-                setStatus(status, "Enter the extra password.", "error");
-                extraPassword.focus();
+                setStatus(status, extraPassword ? "Enter the extra password." : "Decrypt the submitted request before updating.", "error");
+                extraPassword?.focus();
                 return;
             }
 
             if (!rememberedInformationRequestExtraPassword) {
+                if (!extraPassword || !confirmExtraPassword) {
+                    setStatus(status, "Decrypt the submitted request before updating.", "error");
+                    return;
+                }
+
                 if (extraPassword.value.length < minimumExtraPasswordLength) {
                     setStatus(status, `Extra password must be at least ${minimumExtraPasswordLength} characters.`, "error");
                     extraPassword.focus();
@@ -536,16 +549,28 @@
                 encryptedPayload.value = await encryptSecret(responseInput.value, passwordForEncryption);
                 responseInput.value = "";
                 responseInput.disabled = true;
-                extraPassword.value = "";
-                confirmExtraPassword.value = "";
-                extraPassword.disabled = true;
-                confirmExtraPassword.disabled = true;
+                if (extraPassword) {
+                    extraPassword.value = "";
+                    extraPassword.disabled = true;
+                }
+
+                if (confirmExtraPassword) {
+                    confirmExtraPassword.value = "";
+                    confirmExtraPassword.disabled = true;
+                }
+
                 HTMLFormElement.prototype.submit.call(form);
             } catch {
                 encryptedPayload.value = "";
                 responseInput.disabled = false;
-                extraPassword.disabled = false;
-                confirmExtraPassword.disabled = false;
+                if (extraPassword) {
+                    extraPassword.disabled = false;
+                }
+
+                if (confirmExtraPassword) {
+                    confirmExtraPassword.disabled = false;
+                }
+
                 setClientEncryptionUi();
                 submitButtons.forEach((button) => {
                     button.disabled = false;
@@ -554,7 +579,6 @@
             }
         });
     }
-
     function setupInformationRequestResponseDecryption() {
         const panel = document.querySelector("[data-client-response-decryption]");
         if (!panel) {
@@ -586,7 +610,7 @@
             }
 
             button.disabled = true;
-            setStatus(status, "Decrypting response...", "working");
+            setStatus(status, "Decrypting request...", "working");
             await nextFrame();
 
             try {
@@ -597,11 +621,15 @@
                 responseInput.dispatchEvent(new Event("input", { bubbles: true }));
                 extraPassword.value = "";
                 if (useClientEncryption) {
-                    useClientEncryption.checked = true;
+                    if (useClientEncryption.type === "checkbox") {
+                        useClientEncryption.checked = true;
+                    } else {
+                        useClientEncryption.value = "true";
+                    }
                     useClientEncryption.dispatchEvent(new Event("change", { bubbles: true }));
                 }
 
-                setStatus(status, "Response decrypted for editing. The same extra password will be reused when you save.", "success");
+                setStatus(status, "Request decrypted for editing. The same extra password will be reused when you update.", "success");
             } catch {
                 rememberedInformationRequestExtraPassword = "";
                 setStatus(status, "Unable to decrypt. Check the extra password.", "error");

@@ -70,3 +70,9 @@ public class InformationRequestResponseViewModel
     public bool HasResponse => LastSubmittedAtUtc.HasValue
         && (!string.IsNullOrWhiteSpace(PartnerResponse) || !string.IsNullOrWhiteSpace(ExistingClientEncryptedPartnerResponsePayload));
 }
+
+public class InformationRequestSubmittedViewModel
+{
+    public bool IsProtectedResponse { get; set; }
+    public bool IsUpdate { get; set; }
+}

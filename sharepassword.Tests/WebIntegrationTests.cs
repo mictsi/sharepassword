@@ -425,7 +425,8 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         var updateHtml = await updateResponse.Content.ReadAsStringAsync();
 
         updateResponse.EnsureSuccessStatusCode();
-        Assert.Contains("Information saved.", updateHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Information submitted", updateHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Contact the requester", updateHtml, StringComparison.OrdinalIgnoreCase);
 
         var requestStore = _factory.Services.GetRequiredService<IInformationRequestStore>();
         var request = (await requestStore.GetAllInformationRequestsAsync()).Single(x => x.PartnerEmail == partnerEmail);
@@ -437,7 +438,7 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         var detailsHtml = await client.GetStringAsync($"/informationrequests/details/{request.Id}");
 
         Assert.Contains(partnerResponse, detailsHtml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Partner response", detailsHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("User response", detailsHtml, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -460,6 +461,15 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
 
         Assert.Contains("Update submitted request", revisitHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Last submitted", revisitHtml, StringComparison.OrdinalIgnoreCase);
+
+        var updateAccessResponse = await AccessInformationRequestAsync(client, created.RequestPath, partnerEmail, created.AccessCode);
+        var updateAccessHtml = await updateAccessResponse.Content.ReadAsStringAsync();
+
+        updateAccessResponse.EnsureSuccessStatusCode();
+        Assert.Contains("Update submitted information", updateAccessHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Update submitted request", updateAccessHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Protect with extra password", updateAccessHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Confirm extra password", updateAccessHtml, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -479,7 +489,9 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         var updateHtml = await updateResponse.Content.ReadAsStringAsync();
 
         updateResponse.EnsureSuccessStatusCode();
-        Assert.Contains("Information saved.", updateHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Information submitted", updateHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Contact the requester", updateHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Share the extra password", updateHtml, StringComparison.OrdinalIgnoreCase);
 
         var requestStore = _factory.Services.GetRequiredService<IInformationRequestStore>();
         var request = (await requestStore.GetAllInformationRequestsAsync()).Single(x => x.PartnerEmail == partnerEmail);
@@ -493,6 +505,16 @@ public class WebIntegrationTests : IClassFixture<TestWebApplicationFactory>
         Assert.Contains("Decrypt response", detailsHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Extra password required", detailsHtml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(plaintextResponse, detailsHtml, StringComparison.Ordinal);
+
+        var protectedUpdateAccessResponse = await AccessInformationRequestAsync(client, created.RequestPath, partnerEmail, created.AccessCode);
+        var protectedUpdateAccessHtml = await protectedUpdateAccessResponse.Content.ReadAsStringAsync();
+
+        protectedUpdateAccessResponse.EnsureSuccessStatusCode();
+        Assert.Contains("Provide the extra password to decrypt request", protectedUpdateAccessHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Decrypt request", protectedUpdateAccessHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Update submitted information", protectedUpdateAccessHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Protect with extra password", protectedUpdateAccessHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Confirm extra password", protectedUpdateAccessHtml, StringComparison.OrdinalIgnoreCase);
     }
     [Fact]
     public async Task UsersCreate_WithSelectedRole_CreatesLocalUser()

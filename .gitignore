@@ -76,3 +76,4 @@ AGENTS.md.old
 /.dotnet/
 /.templateengine/
 /.tmp/
+/output/

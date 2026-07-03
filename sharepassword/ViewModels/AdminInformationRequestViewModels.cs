@@ -7,8 +7,8 @@ public class AdminCreateInformationRequestViewModel
 {
     [Required]
     [EmailAddress]
-    [StringLength(256, ErrorMessage = "Partner email cannot exceed 256 characters.")]
-    [Display(Name = "Partner email")]
+    [StringLength(256, ErrorMessage = "User email cannot exceed 256 characters.")]
+    [Display(Name = "User email")]
     public string PartnerEmail { get; set; } = string.Empty;
 
     [Required]
@@ -70,9 +70,39 @@ public class AdminInformationRequestListItemViewModel
     public bool HasResponse => LastSubmittedAtUtc.HasValue;
     public string AccessModeLabel => RequireOidcLogin ? "Microsoft Entra ID + email + code" : "Email + code";
     public string AccessModeTone => RequireOidcLogin ? "entra" : "standard";
-    public string StatusLabel => IsExpired ? "Expired" : IsExpiringSoon ? "Expiring soon" : HasResponse ? "Response received" : "Awaiting response";
-    public string StatusTone => IsExpired ? "expired" : IsExpiringSoon ? "warning" : HasResponse ? "accessed" : "active";
+    public IReadOnlyList<AdminInformationRequestStatusBadgeViewModel> StatusBadges
+    {
+        get
+        {
+            if (IsExpired)
+            {
+                return [new("Expired", "expired")];
+            }
+
+            if (HasResponse && IsExpiringSoon)
+            {
+                return [new("Response received", "accessed"), new("Expiring soon", "warning")];
+            }
+
+            if (HasResponse)
+            {
+                return [new("Response received", "accessed")];
+            }
+
+            if (IsExpiringSoon)
+            {
+                return [new("Expiring soon", "warning")];
+            }
+
+            return [new("Awaiting response", "active")];
+        }
+    }
+
+    public string StatusLabel => StatusBadges[0].Label;
+    public string StatusTone => StatusBadges[0].Tone;
 }
+
+public sealed record AdminInformationRequestStatusBadgeViewModel(string Label, string Tone);
 
 public class AdminInformationRequestDetailsViewModel
 {

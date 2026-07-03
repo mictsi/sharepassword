@@ -88,7 +88,7 @@ public class InformationRequestController : Controller
 
             if (!string.Equals(request.PartnerEmail, oidcEmail, StringComparison.OrdinalIgnoreCase))
             {
-                await _auditLogger.LogAsync("oidc-user", oidcEmail, "information-request.access", false, "InformationRequest", request.Id.ToString(), "OIDC partner mismatch.");
+                await _auditLogger.LogAsync("oidc-user", oidcEmail, "information-request.access", false, "InformationRequest", request.Id.ToString(), "OIDC user mismatch.");
                 return Forbid();
             }
 
@@ -132,6 +132,7 @@ public class InformationRequestController : Controller
         }
 
         var request = validation.Request!;
+        var wasUpdate = HasSubmittedResponse(request);
         ValidateResponsePayload(model);
 
         if (!ModelState.IsValid)
@@ -169,9 +170,18 @@ public class InformationRequestController : Controller
         await _auditLogger.LogAsync("external-user", validation.Email, "information-request.response.update", true, "InformationRequest", request.Id.ToString(), $"Response updated. responseEncryptionMode={request.ResponseEncryptionMode}");
         await _usageMetricsService.RecordAsync(DbUsageMetricsService.InformationRequestResponseSubmittedKey, "external-user", validation.Email, relatedId: request.Id.ToString(), details: "Information request response updated.");
 
-        return View("Response", BuildResponseModel(request, validation.Email, model.Code, "Information saved."));
+        return RedirectToAction(nameof(Submitted), new { protectedResponse = model.UseClientEncryption, updated = wasUpdate });
     }
 
+    [HttpGet]
+    public IActionResult Submitted(bool protectedResponse = false, bool updated = false)
+    {
+        return View(new InformationRequestSubmittedViewModel
+        {
+            IsProtectedResponse = protectedResponse,
+            IsUpdate = updated
+        });
+    }
     private async Task<PartnerAccessValidation> ValidatePartnerAccessAsync(string token, string email, string code, object viewModel, string viewName)
     {
         if (!IsValidToken(token))
@@ -246,7 +256,7 @@ public class InformationRequestController : Controller
 
             if (!string.Equals(request.PartnerEmail, email, StringComparison.OrdinalIgnoreCase))
             {
-                await _auditLogger.LogAsync("oidc-user", email, "information-request.access", false, "InformationRequest", request.Id.ToString(), "OIDC partner mismatch.");
+                await _auditLogger.LogAsync("oidc-user", email, "information-request.access", false, "InformationRequest", request.Id.ToString(), "OIDC user mismatch.");
                 return PartnerAccessValidation.Failed(Forbid());
             }
         }

@@ -60,7 +60,7 @@
     <section class="surface-card summary-card">
         <span class="page-eyebrow">Last update</span>
         <span class="summary-card__value">@(submittedLocal.HasValue ? submittedLocal.Value.ToString("MMM dd") : "None")</span>
-        <span class="summary-card__meta">@(submittedLocal.HasValue ? $"{submittedLocal.Value:yyyy-MM-dd HH:mm} {ApplicationTime.TimeZoneId}" : "Waiting for partner")</span>
+        <span class="summary-card__meta">@(submittedLocal.HasValue ? $"{submittedLocal.Value:yyyy-MM-dd HH:mm} {ApplicationTime.TimeZoneId}" : "Waiting for user")</span>
     </section>
 </div>
 
@@ -73,8 +73,8 @@
 
 <section class="surface-card form-section">
     <div class="form-section__header">
-        <h2 class="form-section__title">Partner response</h2>
-        <p class="form-section__text">Client-encrypted responses require the extra password from the partner.</p>
+        <h2 class="form-section__title">User response</h2>
+        <p class="form-section__text">Client-encrypted responses require the extra password from the user.</p>
     </div>
 
     @if (!Model.HasResponse)

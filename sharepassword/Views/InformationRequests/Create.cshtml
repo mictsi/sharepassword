@@ -20,7 +20,7 @@
     <div>
         <div class="page-eyebrow">Information request</div>
         <h1 class="page-title">Request information</h1>
-        <p class="page-subtitle">Create a secure link and access code for an external partner to submit information until the request expires.</p>
+        <p class="page-subtitle">Create a secure link and access code for an external user to submit information until the request expires.</p>
     </div>
     <div class="page-header__actions">
         <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
@@ -33,8 +33,8 @@
     <div class="form-grid">
         <section class="surface-card form-section">
             <div class="form-section__header">
-                <h2 class="form-section__title">Partner details</h2>
-                <p class="form-section__text">The partner email is used with the access code to protect the request link.</p>
+                <h2 class="form-section__title">User details</h2>
+                <p class="form-section__text">The user email is used with the access code to protect the request link.</p>
             </div>
 
             <div>
@@ -47,7 +47,7 @@
         <section class="surface-card form-section">
             <div class="form-section__header">
                 <h2 class="form-section__title">Instructions</h2>
-                <p class="form-section__text">Describe what the partner should provide. Do not include secrets that should remain hidden from server administrators.</p>
+                <p class="form-section__text">Describe what the user should provide. Do not include secrets that should remain hidden from server administrators.</p>
             </div>
 
             <div>
@@ -62,7 +62,7 @@
         <section class="surface-card form-section">
             <div class="form-section__header">
                 <h2 class="form-section__title">Access controls</h2>
-                <p class="form-section__text">Choose how long the partner can submit or update information.</p>
+                <p class="form-section__text">Choose how long the user can submit or update information.</p>
             </div>
 
             <input asp-for="ExpiryHours" type="hidden" id="ExpiryHours" />
@@ -97,7 +97,7 @@
                     <label asp-for="RequireOidcLogin" class="form-check-label fw-semibold"></label>
                     @if (Model.IsOidcLoginRequirementAvailable)
                     {
-                        <div class="form-text mt-1">Require the signed-in Microsoft Entra ID account to match the partner email before the access code can be used.</div>
+                        <div class="form-text mt-1">Require the signed-in Microsoft Entra ID account to match the user email before the access code can be used.</div>
                     }
                     else
                     {
