@@ -1762,7 +1762,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             var overrides = new Dictionary<string, string?>
             {
                 ["Storage:Backend"] = "sqlite",
-                ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath}",
+                ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath};Mode=ReadWriteCreate",
                 ["SqliteStorage:ApplyMigrationsOnStartup"] = "false",
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
@@ -1883,7 +1883,7 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
             {
                 ["Storage:Backend"] = "sqlite",
                 ["SqliteStorage:ApplyMigrationsOnStartup"] = "false",
-                ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath}",
+                ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath};Mode=ReadWriteCreate",
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
                 ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
