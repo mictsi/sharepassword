@@ -32,6 +32,9 @@ internal static class TestAdminAuth
 
 internal static class TestSqliteDatabase
 {
+    public static string CreateConnectionString(string databasePath) =>
+        $"Data Source={databasePath};Mode=ReadWriteCreate;Pooling=False";
+
     public static void EnsureDatabaseFile(string databasePath)
     {
         var directory = Path.GetDirectoryName(databasePath);
@@ -40,8 +43,35 @@ internal static class TestSqliteDatabase
             Directory.CreateDirectory(directory);
         }
 
-        using var connection = new SqliteConnection($"Data Source={databasePath};Mode=ReadWriteCreate");
+        using var connection = new SqliteConnection(CreateConnectionString(databasePath));
         connection.Open();
+    }
+
+    public static DbContextOptions<SqliteSharePasswordDbContext> CreateOptions(string databasePath)
+    {
+        EnsureDatabaseFile(databasePath);
+
+        var builder = new DbContextOptionsBuilder<SqliteSharePasswordDbContext>();
+        builder.UseSqlite(
+            CreateConnectionString(databasePath),
+            sqlite => sqlite.MigrationsAssembly(typeof(SqliteSharePasswordDbContext).Assembly.FullName));
+        return builder.Options;
+    }
+}
+
+internal sealed class TestSqliteSharePasswordDbContextFactory : ISharePasswordDbContextFactory
+{
+    private readonly DbContextOptions<SqliteSharePasswordDbContext> _options;
+
+    public TestSqliteSharePasswordDbContextFactory(DbContextOptions<SqliteSharePasswordDbContext> options)
+    {
+        _options = options;
+    }
+
+    public Task<SharePasswordDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<SharePasswordDbContext>(new SqliteSharePasswordDbContext(_options));
     }
 }
 
@@ -1778,7 +1808,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             var overrides = new Dictionary<string, string?>
             {
                 ["Storage:Backend"] = "sqlite",
-                ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath};Mode=ReadWriteCreate",
+                ["SqliteStorage:ConnectionString"] = TestSqliteDatabase.CreateConnectionString(DatabasePath),
                 ["SqliteStorage:ApplyMigrationsOnStartup"] = "false",
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
@@ -1791,12 +1821,16 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<DbContextOptions<SqliteSharePasswordDbContext>>();
+            services.RemoveAll<ISharePasswordDbContextFactory>();
             services.RemoveAll<IShareStore>();
             services.RemoveAll<IInformationRequestStore>();
             services.RemoveAll<IAuditLogSink>();
             services.RemoveAll<IAuditLogReader>();
             services.RemoveAll<IPlatformInitializationService>();
 
+            services.AddSingleton(TestSqliteDatabase.CreateOptions(DatabasePath));
+            services.AddSingleton<ISharePasswordDbContextFactory, TestSqliteSharePasswordDbContextFactory>();
             services.AddSingleton<IShareStore, InMemoryShareStore>();
             services.AddSingleton<IInformationRequestStore, InMemoryInformationRequestStore>();
             services.AddSingleton<IPlatformInitializationService, TestSqlitePlatformInitializationService>();
@@ -1812,6 +1846,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
         if (disposing && Directory.Exists(_databaseDirectory))
         {
+            SqliteConnection.ClearAllPools();
             Directory.Delete(_databaseDirectory, recursive: true);
         }
     }
@@ -1899,7 +1934,7 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
             {
                 ["Storage:Backend"] = "sqlite",
                 ["SqliteStorage:ApplyMigrationsOnStartup"] = "false",
-                ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath};Mode=ReadWriteCreate",
+                ["SqliteStorage:ConnectionString"] = TestSqliteDatabase.CreateConnectionString(DatabasePath),
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
                 ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
@@ -1913,7 +1948,12 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
         builder.ConfigureTestServices(services =>
         {
             // SQLite migration locks can block indefinitely in test hosts; provider tests create the current schema directly.
+            services.RemoveAll<DbContextOptions<SqliteSharePasswordDbContext>>();
+            services.RemoveAll<ISharePasswordDbContextFactory>();
             services.RemoveAll<IPlatformInitializationService>();
+
+            services.AddSingleton(TestSqliteDatabase.CreateOptions(DatabasePath));
+            services.AddSingleton<ISharePasswordDbContextFactory, TestSqliteSharePasswordDbContextFactory>();
             services.AddSingleton<IPlatformInitializationService, TestSqlitePlatformInitializationService>();
         });
     }
@@ -1924,6 +1964,7 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
 
         if (disposing && Directory.Exists(_databaseDirectory))
         {
+            SqliteConnection.ClearAllPools();
             Directory.Delete(_databaseDirectory, recursive: true);
         }
     }
