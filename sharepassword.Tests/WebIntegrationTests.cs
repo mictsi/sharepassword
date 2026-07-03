@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using OtpNet;
 using SharePassword.Data;
@@ -1749,6 +1750,8 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.ConfigureLogging(logging => logging.ClearProviders());
+
         builder.ConfigureAppConfiguration((_, config) =>
         {
             var overrides = new Dictionary<string, string?>
@@ -1771,9 +1774,11 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.RemoveAll<IInformationRequestStore>();
             services.RemoveAll<IAuditLogSink>();
             services.RemoveAll<IAuditLogReader>();
+            services.RemoveAll<IPlatformInitializationService>();
 
             services.AddSingleton<IShareStore, InMemoryShareStore>();
             services.AddSingleton<IInformationRequestStore, InMemoryInformationRequestStore>();
+            services.AddSingleton<IPlatformInitializationService, TestSqlitePlatformInitializationService>();
             services.AddSingleton<InMemoryAuditStore>();
             services.AddSingleton<IAuditLogSink>(provider => provider.GetRequiredService<InMemoryAuditStore>());
             services.AddSingleton<IAuditLogReader>(provider => provider.GetRequiredService<InMemoryAuditStore>());
@@ -1854,6 +1859,8 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.ConfigureLogging(logging => logging.ClearProviders());
+
         builder.ConfigureAppConfiguration((_, config) =>
         {
             var overrides = new Dictionary<string, string?>
@@ -1896,6 +1903,7 @@ internal sealed class TestSqlitePlatformInitializationService : IPlatformInitial
     private readonly ILocalUserService _localUserService;
     private readonly ISystemConfigurationService _systemConfigurationService;
     private readonly AdminAuthOptions _adminAuthOptions;
+    private bool _schemaInitialized;
 
     public TestSqlitePlatformInitializationService(
         ISharePasswordDbContextFactory dbContextFactory,
@@ -1911,10 +1919,13 @@ internal sealed class TestSqlitePlatformInitializationService : IPlatformInitial
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        await using (var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken))
+        if (!_schemaInitialized)
         {
+            await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
+            dbContext.Database.EnsureDeleted();
             dbContext.Database.EnsureCreated();
+            _schemaInitialized = true;
         }
 
         await _systemConfigurationService.GetConfigurationAsync(cancellationToken);
