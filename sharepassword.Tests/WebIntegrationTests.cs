@@ -1748,8 +1748,13 @@ public class ApplicationTimeTests
 
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
 {
+    private readonly string _databaseDirectory = Path.Combine(Path.GetTempPath(), "sharepassword-tests", Guid.NewGuid().ToString("N"));
+
+    private string DatabasePath => Path.Combine(_databaseDirectory, "testwebfactory.sqlite");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        Directory.CreateDirectory(_databaseDirectory);
         builder.ConfigureLogging(logging => logging.ClearProviders());
 
         builder.ConfigureAppConfiguration((_, config) =>
@@ -1757,7 +1762,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             var overrides = new Dictionary<string, string?>
             {
                 ["Storage:Backend"] = "sqlite",
-                ["SqliteStorage:ConnectionString"] = "Data Source=testwebfactory;Mode=Memory;Cache=Shared",
+                ["SqliteStorage:ConnectionString"] = $"Data Source={DatabasePath}",
                 ["SqliteStorage:ApplyMigrationsOnStartup"] = "false",
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
@@ -1783,6 +1788,16 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton<IAuditLogSink>(provider => provider.GetRequiredService<InMemoryAuditStore>());
             services.AddSingleton<IAuditLogReader>(provider => provider.GetRequiredService<InMemoryAuditStore>());
         });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing && Directory.Exists(_databaseDirectory))
+        {
+            Directory.Delete(_databaseDirectory, recursive: true);
+        }
     }
 }
 
@@ -1859,6 +1874,7 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        Directory.CreateDirectory(_databaseDirectory);
         builder.ConfigureLogging(logging => logging.ClearProviders());
 
         builder.ConfigureAppConfiguration((_, config) =>
