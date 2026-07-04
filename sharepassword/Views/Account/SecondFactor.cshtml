@@ -1,0 +1,21 @@
+@model SharePassword.ViewModels.SecondFactorViewModel
+@{
+    ViewData["Title"] = "Verify It's You";
+}
+
+<section class="auth-card">
+    <div class="page-eyebrow">Verification</div>
+    <h1 class="page-title">Verify it's you</h1>
+    <p class="page-subtitle">Choose how to complete the sign-in for @Model.Username.</p>
+
+    <div class="d-grid gap-3">
+        @if (Model.HasPasskeys)
+        {
+            <a class="btn btn-primary" asp-action="PasskeyLogin" asp-route-returnUrl="@Model.ReturnUrl">Use a passkey</a>
+        }
+        @if (Model.HasTotp)
+        {
+            <a class="btn btn-outline-primary" asp-action="Totp" asp-route-returnUrl="@Model.ReturnUrl">Use authenticator app code</a>
+        }
+    </div>
+</section>

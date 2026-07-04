@@ -11,6 +11,8 @@ public class ProfileViewModel
     public bool IsLocalAccount { get; set; }
     public bool IsTotpRequired { get; set; }
     public bool IsTotpConfigured { get; set; }
+    public bool IsPasskeySupportEnabled { get; set; }
+    public IReadOnlyCollection<PasskeyListItemViewModel> Passkeys { get; set; } = Array.Empty<PasskeyListItemViewModel>();
     public DateTime? LastLoginAtUtc { get; set; }
     public DateTime? LastShareCreatedAtUtc { get; set; }
     public DateTime? LastPasswordResetAtUtc { get; set; }

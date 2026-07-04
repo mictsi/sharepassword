@@ -1,0 +1,32 @@
+@model SharePassword.ViewModels.PasskeyLoginViewModel
+@{
+    ViewData["Title"] = "Passkey Sign-In";
+}
+
+<section class="auth-card"
+         data-passkey-login
+         data-passkey-options-url="@Url.Action("PasskeyAssertionOptions")"
+         data-passkey-verify-url="@Url.Action("PasskeyAssertionVerify")"
+         data-passkey-return-url="@Model.ReturnUrl">
+    <div class="page-eyebrow">Verification</div>
+    <h1 class="page-title">Sign in with a passkey</h1>
+    <p class="page-subtitle">Use a registered passkey to complete the sign-in for @Model.Username.</p>
+
+    <form>
+        @Html.AntiForgeryToken()
+    </form>
+
+    <div id="passkeyLoginError" class="alert alert-danger d-none" role="alert"></div>
+
+    <div class="d-grid gap-3">
+        <button type="button" id="passkeyLoginButton" class="btn btn-primary">Use passkey</button>
+        @if (Model.HasTotp)
+        {
+            <a class="btn btn-outline-primary" asp-action="Totp" asp-route-returnUrl="@Model.ReturnUrl">Use authenticator app code instead</a>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <script src="~/js/passkey.js" asp-append-version="true"></script>
+}

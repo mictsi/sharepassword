@@ -92,6 +92,61 @@ else
         </div>
     </section>
 
+    @if (Model.IsPasskeySupportEnabled)
+    {
+        <section class="surface-card form-section"
+                 data-passkey-register
+                 data-passkey-options-url="@Url.Action("PasskeyRegistrationOptions")"
+                 data-passkey-register-url="@Url.Action("PasskeyRegister")">
+            <div class="form-section__header">
+                <h2 class="surface-card__title">Passkeys</h2>
+                <p class="surface-card__subtitle mb-0">Passkeys can be used instead of the authenticator app code when completing sign-in. Register one per device or password manager.</p>
+            </div>
+
+            <div id="passkeyRegisterError" class="alert alert-danger d-none" role="alert"></div>
+
+            @if (Model.Passkeys.Count > 0)
+            {
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Created</th>
+                            <th>Last used</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var passkey in Model.Passkeys)
+                        {
+                            <tr>
+                                <td>@passkey.DisplayName</td>
+                                <td>@FormatStamp(passkey.CreatedAtUtc)</td>
+                                <td>@FormatStamp(passkey.LastUsedAtUtc)</td>
+                                <td class="text-end">
+                                    <form method="post" asp-action="PasskeyRemove" asp-route-id="@passkey.Id" data-confirm="Remove this passkey?">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+
+            <div class="form-grid">
+                <div>
+                    <label for="passkeyDisplayName" class="form-label">Passkey name</label>
+                    <input id="passkeyDisplayName" class="form-control" maxlength="128" placeholder="e.g. Work laptop" />
+                </div>
+            </div>
+            <div class="action-row">
+                <button type="button" id="passkeyRegisterButton" class="btn btn-outline-primary">Add passkey</button>
+            </div>
+            <form class="d-none">@Html.AntiForgeryToken()</form>
+        </section>
+    }
+
     <form method="post" class="surface-card form-section">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
@@ -127,4 +182,8 @@ else
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    @if (Model.IsPasskeySupportEnabled)
+    {
+        <script src="~/js/passkey.js" asp-append-version="true"></script>
+    }
 }

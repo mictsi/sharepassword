@@ -23,8 +23,12 @@ public class AccountController : Controller
     private readonly IUsageMetricsService _usageMetricsService;
     private readonly ILoginThrottleService _loginThrottleService;
     private readonly IApplicationTime _applicationTime;
+    private readonly IPasskeyService _passkeyService;
     private readonly string _adminRoleName;
     private readonly string _userRoleName;
+
+    private const string PasskeyRegistrationOptionsTempDataKey = "passkey.registration.options";
+    private const string PasskeyAssertionOptionsTempDataKey = "passkey.assertion.options";
 
     public AccountController(
         IOptions<AdminAuthOptions> adminAuthOptions,
@@ -33,7 +37,8 @@ public class AccountController : Controller
         ILocalUserService localUserService,
         IUsageMetricsService usageMetricsService,
         ILoginThrottleService loginThrottleService,
-        IApplicationTime applicationTime)
+        IApplicationTime applicationTime,
+        IPasskeyService passkeyService)
     {
         _adminAuthOptions = adminAuthOptions.Value;
         _oidcAuthOptions = oidcAuthOptions.Value;
@@ -42,6 +47,7 @@ public class AccountController : Controller
         _usageMetricsService = usageMetricsService;
         _loginThrottleService = loginThrottleService;
         _applicationTime = applicationTime;
+        _passkeyService = passkeyService;
         _adminRoleName = string.IsNullOrWhiteSpace(_oidcAuthOptions.AdminRoleName) ? "Admin" : _oidcAuthOptions.AdminRoleName.Trim();
         _userRoleName = string.IsNullOrWhiteSpace(_oidcAuthOptions.UserRoleName) ? "User" : _oidcAuthOptions.UserRoleName.Trim();
     }
@@ -108,10 +114,24 @@ public class AccountController : Controller
 
             _loginThrottleService.RecordSuccess(model.Username);
 
-            if (RequiresTotp(localAuthentication.User))
+            var hasTotp = HasConfirmedTotp(localAuthentication.User);
+            var hasPasskeys = _passkeyService.IsEnabled && await _passkeyService.HasPasskeysAsync(localAuthentication.User.Id);
+
+            if (localAuthentication.User.IsTotpRequired || hasTotp || hasPasskeys)
             {
                 await SignInPendingTotpAsync(localAuthentication.User);
-                return RedirectToAction(HasConfirmedTotp(localAuthentication.User) ? nameof(Totp) : nameof(TotpSetup), new { returnUrl });
+
+                if (hasTotp && hasPasskeys)
+                {
+                    return RedirectToAction(nameof(SecondFactor), new { returnUrl });
+                }
+
+                if (hasPasskeys)
+                {
+                    return RedirectToAction(nameof(PasskeyLogin), new { returnUrl });
+                }
+
+                return RedirectToAction(hasTotp ? nameof(Totp) : nameof(TotpSetup), new { returnUrl });
             }
 
             await CompleteLocalSignInAsync(localAuthentication.User);
@@ -205,6 +225,204 @@ public class AccountController : Controller
 
         await CompleteLocalSignInAsync(result.User);
         return RedirectToAction(nameof(PostLogin), new { returnUrl });
+    }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> SecondFactor(string? returnUrl = null)
+    {
+        var pendingUser = await GetPendingSecondFactorUserAsync();
+        if (pendingUser is null)
+        {
+            return RedirectToAction(nameof(Login), new { returnUrl });
+        }
+
+        var hasTotp = HasConfirmedTotp(pendingUser);
+        var hasPasskeys = _passkeyService.IsEnabled && await _passkeyService.HasPasskeysAsync(pendingUser.Id);
+
+        if (!hasTotp && !hasPasskeys)
+        {
+            return RedirectToAction(nameof(TotpSetup), new { returnUrl });
+        }
+
+        if (!hasPasskeys)
+        {
+            return RedirectToAction(nameof(Totp), new { returnUrl });
+        }
+
+        if (!hasTotp)
+        {
+            return RedirectToAction(nameof(PasskeyLogin), new { returnUrl });
+        }
+
+        return View(new SecondFactorViewModel
+        {
+            Username = pendingUser.Username,
+            HasTotp = hasTotp,
+            HasPasskeys = hasPasskeys,
+            ReturnUrl = returnUrl
+        });
+    }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> PasskeyLogin(string? returnUrl = null)
+    {
+        var pendingUser = await GetPendingSecondFactorUserAsync();
+        if (pendingUser is null)
+        {
+            return RedirectToAction(nameof(Login), new { returnUrl });
+        }
+
+        if (!_passkeyService.IsEnabled || !await _passkeyService.HasPasskeysAsync(pendingUser.Id))
+        {
+            return RedirectToAction(nameof(Totp), new { returnUrl });
+        }
+
+        return View(new PasskeyLoginViewModel
+        {
+            Username = pendingUser.Username,
+            HasTotp = HasConfirmedTotp(pendingUser),
+            ReturnUrl = returnUrl
+        });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PasskeyAssertionOptions()
+    {
+        var pendingUser = await GetPendingSecondFactorUserAsync();
+        if (pendingUser is null || !_passkeyService.IsEnabled)
+        {
+            return Forbid();
+        }
+
+        if (_loginThrottleService.GetPauseExpiryUtc(pendingUser.Username) is { } pauseExpiryUtc)
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests, BuildLoginPausedMessage(pauseExpiryUtc));
+        }
+
+        var optionsJson = await _passkeyService.BeginAssertionAsync(pendingUser.Id);
+        if (optionsJson is null)
+        {
+            return NotFound();
+        }
+
+        TempData[PasskeyAssertionOptionsTempDataKey] = optionsJson;
+        return Content(optionsJson, "application/json");
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PasskeyAssertionVerify([FromBody] PasskeyAssertionVerifyRequest request)
+    {
+        var pendingUser = await GetPendingSecondFactorUserAsync();
+        if (pendingUser is null || !_passkeyService.IsEnabled)
+        {
+            return Forbid();
+        }
+
+        if (_loginThrottleService.GetPauseExpiryUtc(pendingUser.Username) is { } pauseExpiryUtc)
+        {
+            await _auditLogger.LogAsync("admin", pendingUser.Username, "login.paused", false, details: "Passkey sign-in attempt while account sign-in is paused.");
+            return Json(new { succeeded = false, error = BuildLoginPausedMessage(pauseExpiryUtc) });
+        }
+
+        if (TempData[PasskeyAssertionOptionsTempDataKey] is not string optionsJson)
+        {
+            return Json(new { succeeded = false, error = "The passkey sign-in session expired. Try again." });
+        }
+
+        var result = await _passkeyService.CompleteAssertionAsync(pendingUser.Id, optionsJson, request.Response ?? string.Empty);
+        if (!result.Succeeded)
+        {
+            await _auditLogger.LogAsync("admin", pendingUser.Username, "local-user.passkey.login", false, targetType: "LocalUser", targetId: pendingUser.Id.ToString(), details: result.ErrorMessage);
+
+            if (_loginThrottleService.RecordFailure(pendingUser.Username) is { } newPauseExpiryUtc)
+            {
+                await _auditLogger.LogAsync("admin", pendingUser.Username, "login.paused", false, details: "Account sign-in paused after repeated failed attempts.");
+                return Json(new { succeeded = false, error = BuildLoginPausedMessage(newPauseExpiryUtc) });
+            }
+
+            return Json(new { succeeded = false, error = result.ErrorMessage ?? "Passkey sign-in failed." });
+        }
+
+        _loginThrottleService.RecordSuccess(pendingUser.Username);
+        await _auditLogger.LogAsync("admin", pendingUser.Username, "local-user.passkey.login", true, targetType: "LocalUser", targetId: pendingUser.Id.ToString(), details: $"Passkey used: {result.Passkey?.DisplayName}");
+        await CompleteLocalSignInAsync(pendingUser);
+
+        var redirectUrl = Url.IsLocalUrl(request.ReturnUrl)
+            ? request.ReturnUrl!
+            : Url.Action(nameof(PostLogin)) ?? "/";
+        return Json(new { succeeded = true, redirectUrl });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PasskeyRegistrationOptions()
+    {
+        var user = await GetCurrentConfirmedLocalUserAsync();
+        if (user is null || !_passkeyService.IsEnabled)
+        {
+            return Forbid();
+        }
+
+        var optionsJson = await _passkeyService.BeginRegistrationAsync(user);
+        TempData[PasskeyRegistrationOptionsTempDataKey] = optionsJson;
+        return Content(optionsJson, "application/json");
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PasskeyRegister([FromBody] PasskeyRegisterRequest request)
+    {
+        var user = await GetCurrentConfirmedLocalUserAsync();
+        if (user is null || !_passkeyService.IsEnabled)
+        {
+            return Forbid();
+        }
+
+        if (TempData[PasskeyRegistrationOptionsTempDataKey] is not string optionsJson)
+        {
+            return Json(new { succeeded = false, error = "The passkey setup session expired. Try again." });
+        }
+
+        var result = await _passkeyService.CompleteRegistrationAsync(user.Id, optionsJson, request.Response ?? string.Empty, request.DisplayName);
+        if (!result.Succeeded)
+        {
+            await _auditLogger.LogAsync(GetCurrentActorType(), user.Username, "local-user.passkey.register", false, targetType: "LocalUser", targetId: user.Id.ToString(), details: result.ErrorMessage);
+            return Json(new { succeeded = false, error = result.ErrorMessage ?? "Passkey registration failed." });
+        }
+
+        await _auditLogger.LogAsync(GetCurrentActorType(), user.Username, "local-user.passkey.register", true, targetType: "LocalUser", targetId: user.Id.ToString(), details: $"Passkey registered: {result.Passkey?.DisplayName}");
+        return Json(new { succeeded = true });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PasskeyRemove(Guid id)
+    {
+        var user = await GetCurrentConfirmedLocalUserAsync();
+        if (user is null)
+        {
+            return Forbid();
+        }
+
+        var result = await _passkeyService.RemovePasskeyAsync(user.Id, id);
+        if (!result.Succeeded)
+        {
+            TempData["StatusMessage"] = result.ErrorMessage ?? "The passkey could not be removed.";
+            return RedirectToAction(nameof(Profile));
+        }
+
+        await _auditLogger.LogAsync(GetCurrentActorType(), user.Username, "local-user.passkey.remove", true, targetType: "LocalUser", targetId: user.Id.ToString(), details: $"Passkey removed: {result.Passkey?.DisplayName}");
+        TempData["StatusMessage"] = "Passkey removed.";
+        return RedirectToAction(nameof(Profile));
     }
 
     [Authorize]
@@ -581,6 +799,10 @@ public class AccountController : Controller
             .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var passkeys = localUser is not null && _passkeyService.IsEnabled
+            ? await _passkeyService.GetPasskeysAsync(localUser.Id)
+            : Array.Empty<LocalUserPasskey>();
+
         return new ProfileViewModel
         {
             Username = localUser?.Username ?? GetCurrentUserIdentifier(),
@@ -590,6 +812,16 @@ public class AccountController : Controller
             IsLocalAccount = localUser is not null,
             IsTotpRequired = localUser?.IsTotpRequired ?? false,
             IsTotpConfigured = localUser is not null && HasConfirmedTotp(localUser),
+            IsPasskeySupportEnabled = _passkeyService.IsEnabled,
+            Passkeys = passkeys
+                .Select(x => new PasskeyListItemViewModel
+                {
+                    Id = x.Id,
+                    DisplayName = x.DisplayName,
+                    CreatedAtUtc = x.CreatedAtUtc,
+                    LastUsedAtUtc = x.LastUsedAtUtc
+                })
+                .ToList(),
             LastLoginAtUtc = localUser?.LastLoginAtUtc,
             LastShareCreatedAtUtc = localUser?.LastShareCreatedAtUtc,
             LastPasswordResetAtUtc = localUser?.LastPasswordResetAtUtc,
@@ -609,6 +841,35 @@ public class AccountController : Controller
     {
         var raw = User.FindFirstValue("pending_totp_user_id");
         return Guid.TryParse(raw, out var localUserId) ? localUserId : null;
+    }
+
+    private async Task<LocalUser?> GetPendingSecondFactorUserAsync()
+    {
+        var pendingUserId = GetPendingTotpUserId();
+        if (pendingUserId is null)
+        {
+            return null;
+        }
+
+        var user = await _localUserService.GetByIdAsync(pendingUserId.Value);
+        return user is null || user.IsDisabled ? null : user;
+    }
+
+    private async Task<LocalUser?> GetCurrentConfirmedLocalUserAsync()
+    {
+        if (GetPendingTotpUserId() is not null)
+        {
+            return null;
+        }
+
+        var localUserId = GetCurrentLocalUserId();
+        if (localUserId is null)
+        {
+            return null;
+        }
+
+        var user = await _localUserService.GetByIdAsync(localUserId.Value);
+        return user is null || user.IsDisabled ? null : user;
     }
 
     private static bool RequiresTotp(LocalUser user)

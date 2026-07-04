@@ -128,6 +128,17 @@
     </div>
 </form>
 
+<form method="post" asp-action="RemovePasskeys" asp-route-id="@Model.Id" class="surface-card form-section" data-confirm="Remove all passkeys for this local user?">
+    <div class="form-section__header">
+        <h2 class="surface-card__title">Passkeys</h2>
+        <p class="surface-card__subtitle mb-0">Remove all of this account's passkeys when the user has lost a device or the credentials should be revoked. The user can register new passkeys from their profile.</p>
+    </div>
+
+    <div class="action-row">
+        <button type="submit" class="btn btn-outline-danger">Remove all passkeys</button>
+    </div>
+</form>
+
 <form method="post" asp-action="ResetPassword" class="surface-card form-section">
     <input type="hidden" name="UserId" value="@Model.ResetPassword!.UserId" />
     <input type="hidden" name="Username" value="@Model.ResetPassword.Username" />
