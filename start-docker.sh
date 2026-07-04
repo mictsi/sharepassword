@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build and run SharePassword in Docker.
+# Build and run SharePassword with Docker Compose (docker-compose.yml).
 #
 # Usage:
 #   ./start-docker.sh start        Build the image and start the container
@@ -19,12 +19,16 @@ set -euo pipefail
 # Optional environment:
 #   SHAREPASSWORD_PORT         Host port to publish (default 8080)
 
-IMAGE_NAME="sharepassword"
 CONTAINER_NAME="sharepassword"
 VOLUME_NAME="sharepassword-data"
-HOST_PORT="${SHAREPASSWORD_PORT:-8080}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env.docker"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+export SHAREPASSWORD_PORT="${SHAREPASSWORD_PORT:-8080}"
+
+compose() {
+	docker compose -f "$COMPOSE_FILE" "$@"
+}
 
 usage() {
 	sed -n '4,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -34,6 +38,11 @@ usage() {
 require_docker() {
 	if ! command -v docker >/dev/null 2>&1; then
 		echo "ERROR: docker is not installed or not on PATH." >&2
+		exit 1
+	fi
+
+	if ! docker compose version >/dev/null 2>&1; then
+		echo "ERROR: the Docker Compose plugin is not available (docker compose)." >&2
 		exit 1
 	fi
 }
@@ -82,33 +91,18 @@ start() {
 		exit 1
 	fi
 
-	echo "Building image $IMAGE_NAME..."
-	docker build -t "$IMAGE_NAME" "$SCRIPT_DIR"
+	echo "Building and starting via Docker Compose..."
+	compose up -d --build
 
-	if docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
-		echo "Removing existing container $CONTAINER_NAME..."
-		docker rm -f "$CONTAINER_NAME" >/dev/null
-	fi
-
-	echo "Starting container $CONTAINER_NAME on port $HOST_PORT..."
-	docker run -d \
-		--name "$CONTAINER_NAME" \
-		-p "$HOST_PORT:8080" \
-		-v "$VOLUME_NAME:/app/data" \
-		-e "AdminAuth__PasswordHash=$AdminAuth__PasswordHash" \
-		-e "Encryption__Passphrase=$Encryption__Passphrase" \
-		${AdminAuth__Username:+-e "AdminAuth__Username=$AdminAuth__Username"} \
-		"$IMAGE_NAME" >/dev/null
-
-	echo "SharePassword is starting: http://localhost:$HOST_PORT"
-	echo "Logs:   docker logs -f $CONTAINER_NAME"
-	echo "Health: curl http://localhost:$HOST_PORT/health"
+	echo "SharePassword is starting: http://localhost:$SHAREPASSWORD_PORT"
+	echo "Logs:   docker compose -f $COMPOSE_FILE logs -f"
+	echo "Health: curl http://localhost:$SHAREPASSWORD_PORT/health"
 }
 
 stop() {
 	if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
-		echo "Stopping container $CONTAINER_NAME..."
-		docker stop "$CONTAINER_NAME" >/dev/null
+		echo "Stopping via Docker Compose..."
+		compose stop
 		echo "Stopped."
 	else
 		echo "Container $CONTAINER_NAME is not running."
@@ -118,22 +112,12 @@ stop() {
 clean() {
 	local remove_volume="${1:-}"
 
-	if docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
-		echo "Removing container $CONTAINER_NAME..."
-		docker rm -f "$CONTAINER_NAME" >/dev/null
-	fi
-
-	if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-		echo "Removing image $IMAGE_NAME..."
-		docker rmi "$IMAGE_NAME" >/dev/null
-	fi
-
 	if [[ "$remove_volume" == "--all" ]]; then
-		if docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1; then
-			echo "Removing data volume $VOLUME_NAME (deletes the SQLite database)..."
-			docker volume rm "$VOLUME_NAME" >/dev/null
-		fi
+		echo "Removing container, image, and data volume (deletes the SQLite database)..."
+		compose down --rmi all --volumes
 	else
+		echo "Removing container and image (data volume kept)..."
+		compose down --rmi all
 		echo "Data volume $VOLUME_NAME kept. Use './start-docker.sh clean --all' to remove it."
 	fi
 

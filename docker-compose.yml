@@ -1,0 +1,22 @@
+name: sharepassword
+
+services:
+  sharepassword:
+    build: .
+    image: sharepassword
+    container_name: sharepassword
+    ports:
+      - "${SHAREPASSWORD_PORT:-8080}:8080"
+    volumes:
+      - sharepassword-data:/app/data
+    environment:
+      # Passed through from the shell; start-docker.sh exports them
+      # (from the environment or .env.docker) before invoking compose.
+      - AdminAuth__PasswordHash
+      - Encryption__Passphrase
+      - AdminAuth__Username
+    restart: unless-stopped
+
+volumes:
+  sharepassword-data:
+    name: sharepassword-data

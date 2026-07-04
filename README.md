@@ -23,7 +23,8 @@ Supported storage backends for both shares and audit logs:
 - `sharepassword/` — web application project
 - `sharepassword.Tests/` — test project
 - `Dockerfile` — container image definition
-- `start-docker.sh` — build and run the app in Docker (start/stop/clean)
+- `docker-compose.yml` — compose definition (service, port, data volume)
+- `start-docker.sh` — build and run the app via Docker Compose (start/stop/clean)
 - `start-linux.sh` / `start-win.ps1` — run the app locally with the .NET SDK
 - `.github/workflows/build.yml` — CI workflow
 - `docs/CHANGELOG.md` — changelog
@@ -39,7 +40,7 @@ dotnet run --project ./sharepassword/sharepassword.csproj
 
 ## Run with Docker
 
-`start-docker.sh` builds the image and manages the container. The container runs as a non-root user and stores the SQLite database in a named volume (`sharepassword-data`).
+`start-docker.sh` builds the image and manages the container through Docker Compose (`docker-compose.yml`). The container runs as a non-root user and stores the SQLite database in a named volume (`sharepassword-data`).
 
 Two secrets are required and can be exported or placed in a gitignored `.env.docker` file next to the script:
 
