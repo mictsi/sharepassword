@@ -22,6 +22,9 @@ Supported storage backends for both shares and audit logs:
 
 - `sharepassword/` — web application project
 - `sharepassword.Tests/` — test project
+- `Dockerfile` — container image definition
+- `start-docker.sh` — build and run the app in Docker (start/stop/clean)
+- `start-linux.sh` / `start-win.ps1` — run the app locally with the .NET SDK
 - `.github/workflows/build.yml` — CI workflow
 - `docs/CHANGELOG.md` — changelog
 - `docs/RELEASE_NOTES.md` — consolidated release notes
@@ -34,6 +37,27 @@ dotnet restore ./sharepassword.sln
 dotnet run --project ./sharepassword/sharepassword.csproj
 ```
 
+## Run with Docker
+
+`start-docker.sh` builds the image and manages the container. The container runs as a non-root user and stores the SQLite database in a named volume (`sharepassword-data`).
+
+Two secrets are required and can be exported or placed in a gitignored `.env.docker` file next to the script:
+
+```bash
+# Generate the admin password hash
+dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'
+
+export AdminAuth__PasswordHash='<output-from-above>'
+export Encryption__Passphrase='<random secret, minimum 15 chars, 32+ recommended>'
+
+./start-docker.sh start        # build image + run container on port 8080
+./start-docker.sh stop         # stop the container
+./start-docker.sh clean        # remove container + image, keep data volume
+./start-docker.sh clean --all  # also remove the data volume (deletes the database)
+```
+
+Set `SHAREPASSWORD_PORT` to publish a different host port. When running behind a reverse proxy, configure the `ForwardedHeaders` section so audit logs record real client IPs (see [sharepassword/CONFIGURATION.md](sharepassword/CONFIGURATION.md)).
+
 For full configuration and usage instructions, see:
 
 - [docs/app-overview.md](docs/app-overview.md)
@@ -45,15 +69,35 @@ For full configuration and usage instructions, see:
 
 ## Admin password hash
 
-Generate a PBKDF2-SHA256 admin password hash from the repository root with:
+Generate an admin password hash (Argon2id, with scrypt fallback; legacy PBKDF2-SHA256 hashes remain valid) from the repository root with:
 
 ```powershell
 ./scripts/new-admin-password-hash.ps1
 ```
 
+or with the .NET CLI:
+
+```bash
+dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'
+```
+
 Paste the output into `AdminAuth:PasswordHash`. Cleartext `AdminAuth:Password` is no longer supported.
 
 The full admin authentication configuration is documented in `sharepassword/README.md`.
+
+## Security hardening
+
+Beyond the share access controls described above, the app ships with:
+
+- Per-account throttling of failed sign-ins (`LoginThrottle` section, audit-logged as `login.paused`)
+- Startup validation of `Encryption:Passphrase` (minimum 15 characters, 32+ recommended)
+- Access codes stored as keyed HMAC-SHA256 hashes
+- SMTP password encrypted at rest; the admin mail form never echoes it back
+- Optional trusted-proxy forwarded-header handling (`ForwardedHeaders` section)
+- Configurable local login fallback when OIDC is enabled (`OidcAuth:LocalLoginFallback`: `LoopbackOnly`, `Always`, or `Never`)
+- Container image runs as a non-root user
+
+See [sharepassword/CONFIGURATION.md](sharepassword/CONFIGURATION.md) for details.
 
 ## Azure provisioning script
 
