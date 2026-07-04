@@ -20,7 +20,7 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 	Application__AuthenticationSlidingExpiration=true \
 	Kestrel__Endpoints__Http__Url=http://+:8080 \
 	Storage__Backend=sqlite \
-	SqliteStorage__ConnectionString=Data Source=/app/data/sharepassword.db \
+	SqliteStorage__ConnectionString="Data Source=/app/data/sharepassword.db" \
 	SqliteStorage__ApplyMigrationsOnStartup=true \
 	SqlServerStorage__ConnectionString= \
 	SqlServerStorage__ApplyMigrationsOnStartup=true \

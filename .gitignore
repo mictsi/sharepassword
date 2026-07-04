@@ -78,3 +78,5 @@ AGENTS.md.old
 /.tmp/
 /output/
 .fake
+# Docker start script secrets
+.env.docker

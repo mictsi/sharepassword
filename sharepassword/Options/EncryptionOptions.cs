@@ -3,7 +3,7 @@ namespace SharePassword.Options;
 public class EncryptionOptions
 {
     public const string SectionName = "Encryption";
-    public const int MinimumPassphraseLength = 32;
+    public const int MinimumPassphraseLength = 15;
 
     public string Passphrase { get; set; } = string.Empty;
 

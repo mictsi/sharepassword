@@ -8,7 +8,7 @@ Set strong values before deployment:
 
 - `AdminAuth:Username`: non-default admin name.
 - `AdminAuth:PasswordHash`: required password hash. New hashes use Argon2id and fall back to scrypt if Argon2id is unavailable. Legacy PBKDF2-SHA256 hashes are still accepted.
-- `Encryption:Passphrase`: long random secret. The app refuses to start when it is missing or shorter than 32 characters.
+- `Encryption:Passphrase`: long random secret (32+ chars recommended). The app refuses to start when it is missing or shorter than 15 characters.
 
 Recommendations:
 
