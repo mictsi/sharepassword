@@ -82,3 +82,6 @@ AGENTS.md.old
 .env.docker
 .env.prod
 .env.dev
+
+# Serena MCP tool state
+.serena/
