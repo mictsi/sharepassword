@@ -1495,6 +1495,14 @@ body.action-login {
   font-weight: 800;
 }
 
+.second-factor-card__icon {
+  display: block;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.9rem;
+  color: var(--sp-primary);
+}
+
 .controller-informationrequest.action-access .app-width--public {
   width: min(100% - 2rem, 720px);
 }

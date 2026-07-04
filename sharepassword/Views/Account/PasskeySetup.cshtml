@@ -9,8 +9,8 @@
          data-passkey-register-url="@Url.Action("PasskeyRegister")"
          data-passkey-return-url="@Model.ReturnUrl">
     <div class="page-eyebrow">Security setup</div>
-    <h1 class="page-title">Set up a passkey</h1>
-    <p class="page-subtitle">Register a passkey for @Model.Username. The browser will prompt for the device's screen lock, security key, or password manager.</p>
+    <h1 class="page-title">Add passkey to your account</h1>
+    <p class="page-subtitle">Register a passkey for @Model.Username. Give it a name you will recognize (like the device it lives on), then follow the browser prompt — your fingerprint, face, screen lock, or security key confirms it.</p>
 
     <form>
         @Html.AntiForgeryToken()
