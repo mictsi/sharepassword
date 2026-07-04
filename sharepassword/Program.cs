@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using SharePassword.Data;
@@ -46,8 +47,24 @@ builder.Services
     .Validate(options => options.MaxAttempts > 0, "DatabaseResilience:MaxAttempts must be greater than 0.")
     .Validate(options => options.DelayMilliseconds >= 0, "DatabaseResilience:DelayMilliseconds must be 0 or greater.")
     .ValidateOnStart();
-builder.Services.Configure<EncryptionOptions>(builder.Configuration.GetSection(EncryptionOptions.SectionName));
+builder.Services
+    .AddOptions<EncryptionOptions>()
+    .Bind(builder.Configuration.GetSection(EncryptionOptions.SectionName))
+    .Validate(
+        options => EncryptionOptions.IsValidPassphrase(options.Passphrase),
+        $"Encryption:Passphrase is required and must be at least {EncryptionOptions.MinimumPassphraseLength} characters long.")
+    .ValidateOnStart();
 builder.Services.Configure<ShareOptions>(builder.Configuration.GetSection(ShareOptions.SectionName));
+builder.Services
+    .AddOptions<ForwardedHeadersProxyOptions>()
+    .Bind(builder.Configuration.GetSection(ForwardedHeadersProxyOptions.SectionName))
+    .Validate(
+        options => !options.Enabled || options.AreEntriesValid(),
+        "ForwardedHeaders:KnownProxies entries must be valid IP addresses and ForwardedHeaders:KnownNetworks entries must be valid CIDR ranges (e.g. \"10.0.0.0/8\").")
+    .Validate(
+        options => !options.Enabled || options.KnownProxies.Length > 0 || options.KnownNetworks.Length > 0,
+        "ForwardedHeaders is enabled but no trusted proxies are configured. Set ForwardedHeaders:KnownProxies and/or ForwardedHeaders:KnownNetworks so forwarded headers are only accepted from trusted sources.")
+    .ValidateOnStart();
 builder.Services.Configure<OidcAuthOptions>(builder.Configuration.GetSection(OidcAuthOptions.SectionName));
 builder.Services.Configure<ConsoleAuditLoggingOptions>(builder.Configuration.GetSection(ConsoleAuditLoggingOptions.SectionName));
 builder.Services.AddAntiforgery();
@@ -322,8 +339,16 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddHttpContextAccessor();
 
+builder.Services
+    .AddOptions<LoginThrottleOptions>()
+    .Bind(builder.Configuration.GetSection(LoginThrottleOptions.SectionName))
+    .Validate(options => options.FailedAttemptLimit > 0, "LoginThrottle:FailedAttemptLimit must be greater than 0.")
+    .Validate(options => options.PauseMinutes > 0, "LoginThrottle:PauseMinutes must be greater than 0.")
+    .Validate(options => options.FailureWindowMinutes > 0, "LoginThrottle:FailureWindowMinutes must be greater than 0.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<ILoginThrottleService, LoginThrottleService>();
 builder.Services.AddSingleton<IPasswordCryptoService, PasswordCryptoService>();
-builder.Services.AddScoped<IAccessCodeService, AccessCodeService>();
+builder.Services.AddSingleton<IAccessCodeService, AccessCodeService>();
 builder.Services.AddSingleton<ITotpService, TotpService>();
 builder.Services.AddSingleton<IAuditLogger, AuditLogger>();
 builder.Services.AddHostedService<ExpiredShareCleanupService>();
@@ -354,6 +379,39 @@ catch (DatabaseOperationException exception)
 {
     startupLogger.LogCritical(exception, "Database startup failed for backend {StorageBackend}. {DiagnosticMessage}", storageBackend, exception.DiagnosticMessage);
     throw;
+}
+
+var forwardedHeadersProxyOptions = app.Services.GetRequiredService<IOptions<ForwardedHeadersProxyOptions>>().Value;
+if (forwardedHeadersProxyOptions.Enabled)
+{
+    var forwardedHeadersOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    };
+    forwardedHeadersOptions.KnownProxies.Clear();
+    forwardedHeadersOptions.KnownIPNetworks.Clear();
+
+    foreach (var proxy in forwardedHeadersProxyOptions.KnownProxies)
+    {
+        if (ForwardedHeadersProxyOptions.TryParseProxy(proxy, out var address))
+        {
+            forwardedHeadersOptions.KnownProxies.Add(address);
+        }
+    }
+
+    foreach (var network in forwardedHeadersProxyOptions.KnownNetworks)
+    {
+        if (ForwardedHeadersProxyOptions.TryParseNetwork(network, out var ipNetwork))
+        {
+            forwardedHeadersOptions.KnownIPNetworks.Add(ipNetwork);
+        }
+    }
+
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+    startupLogger.LogInformation(
+        "Forwarded headers enabled with {KnownProxyCount} known proxies and {KnownNetworkCount} known networks.",
+        forwardedHeadersOptions.KnownProxies.Count,
+        forwardedHeadersOptions.KnownIPNetworks.Count);
 }
 
 if (!app.Environment.IsDevelopment())

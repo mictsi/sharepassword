@@ -94,6 +94,10 @@ public sealed class MailConfigurationUpdateRequest
     public int SmtpPort { get; set; } = 587;
     public string SmtpUsername { get; set; } = string.Empty;
     public string SmtpPassword { get; set; } = string.Empty;
+
+    /// <summary>When true the stored SMTP password is left untouched and <see cref="SmtpPassword"/> is ignored.</summary>
+    public bool KeepExistingSmtpPassword { get; set; }
+
     public bool UseTls { get; set; } = true;
     public string SenderEmail { get; set; } = string.Empty;
     public string SenderDisplayName { get; set; } = string.Empty;

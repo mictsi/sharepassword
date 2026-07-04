@@ -44,7 +44,12 @@ else
                 </div>
                 <div>
                     <label asp-for="SmtpPassword" class="form-label"></label>
-                    <input asp-for="SmtpPassword" class="form-control" type="password" autocomplete="current-password" />
+                    <input asp-for="SmtpPassword" class="form-control" type="password" autocomplete="new-password"
+                           placeholder="@(Model.HasSmtpPassword ? "Leave blank to keep the current password" : "")" />
+                    @if (Model.HasSmtpPassword)
+                    {
+                        <div class="form-text">A password is stored. Leave blank to keep it, or enter a new one to replace it.</div>
+                    }
                 </div>
                 <label class="toggle-card">
                     <input asp-for="UseTls" class="form-check-input" />

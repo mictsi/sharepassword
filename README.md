@@ -22,6 +22,10 @@ Supported storage backends for both shares and audit logs:
 
 - `sharepassword/` — web application project
 - `sharepassword.Tests/` — test project
+- `Dockerfile` — container image definition
+- `docker-compose.yml` — compose definition (service, port, data volume)
+- `start-docker.sh` — build and run the app via Docker Compose (start/stop/clean)
+- `start-linux.sh` / `start-win.ps1` — run the app locally with the .NET SDK
 - `.github/workflows/build.yml` — CI workflow
 - `docs/CHANGELOG.md` — changelog
 - `docs/RELEASE_NOTES.md` — consolidated release notes
@@ -34,6 +38,31 @@ dotnet restore ./sharepassword.sln
 dotnet run --project ./sharepassword/sharepassword.csproj
 ```
 
+## Run with Docker
+
+`start-docker.sh` builds the image and manages the container through Docker Compose (`docker-compose.yml`). The container runs as a non-root user and stores the SQLite database in a named volume (`sharepassword-data`).
+
+Generate a full configuration file from the appsettings templates, fill in the secrets, and start:
+
+```bash
+./scripts/generate-env-file.sh prod   # writes .env.prod from appsettings.json.in
+./scripts/generate-env-file.sh dev    # writes .env.dev (base + Development overlay)
+
+# Generate the admin password hash and put it in the file
+dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'
+
+cp .env.prod .env.docker       # start-docker.sh and compose read .env.docker
+
+./start-docker.sh start        # build image + run container on port 8080
+./start-docker.sh stop         # stop the container
+./start-docker.sh clean        # remove container + image, keep data volume
+./start-docker.sh clean --all  # also remove the data volume (deletes the database)
+```
+
+The generator flattens the JSON templates to ASP.NET environment format (`Section__Key=value`), sets `ASPNETCORE_ENVIRONMENT`, omits `Kestrel__*` (the image binds port 8080 itself), and points the SQLite path at the data volume. It lists any placeholders that still need real values. Alternatively, export just `AdminAuth__PasswordHash` and `Encryption__Passphrase` in the shell and skip the file — the container then runs on image defaults.
+
+Set `SHAREPASSWORD_PORT` to publish a different host port. When running behind a reverse proxy, configure the `ForwardedHeaders` section so audit logs record real client IPs (see [sharepassword/CONFIGURATION.md](sharepassword/CONFIGURATION.md)).
+
 For full configuration and usage instructions, see:
 
 - [docs/app-overview.md](docs/app-overview.md)
@@ -45,15 +74,35 @@ For full configuration and usage instructions, see:
 
 ## Admin password hash
 
-Generate a PBKDF2-SHA256 admin password hash from the repository root with:
+Generate an admin password hash (Argon2id, with scrypt fallback; legacy PBKDF2-SHA256 hashes remain valid) from the repository root with:
 
 ```powershell
 ./scripts/new-admin-password-hash.ps1
 ```
 
+or with the .NET CLI:
+
+```bash
+dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'
+```
+
 Paste the output into `AdminAuth:PasswordHash`. Cleartext `AdminAuth:Password` is no longer supported.
 
 The full admin authentication configuration is documented in `sharepassword/README.md`.
+
+## Security hardening
+
+Beyond the share access controls described above, the app ships with:
+
+- Per-account throttling of failed sign-ins (`LoginThrottle` section, audit-logged as `login.paused`)
+- Startup validation of `Encryption:Passphrase` (minimum 15 characters, 32+ recommended)
+- Access codes stored as keyed HMAC-SHA256 hashes
+- SMTP password encrypted at rest; the admin mail form never echoes it back
+- Optional trusted-proxy forwarded-header handling (`ForwardedHeaders` section)
+- Configurable local login fallback when OIDC is enabled (`OidcAuth:LocalLoginFallback`: `LoopbackOnly`, `Always`, or `Never`)
+- Container image runs as a non-root user
+
+See [sharepassword/CONFIGURATION.md](sharepassword/CONFIGURATION.md) for details.
 
 ## Azure provisioning script
 

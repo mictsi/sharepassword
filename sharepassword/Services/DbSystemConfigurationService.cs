@@ -8,8 +8,13 @@ namespace SharePassword.Services;
 
 public sealed class DbSystemConfigurationService : ISystemConfigurationService
 {
+    // Encrypted SMTP passwords must still fit the 512-char SmtpPassword column,
+    // so the plaintext is capped below the column length before encryption.
+    private const int MaxSmtpPasswordPlaintextLength = 256;
+
     private readonly ISharePasswordDbContextFactory _dbContextFactory;
     private readonly IDatabaseOperationRunner _databaseOperationRunner;
+    private readonly IPasswordCryptoService _passwordCryptoService;
     private readonly ApplicationOptions _applicationOptions;
     private readonly MailOptions _mailOptions;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -18,11 +23,13 @@ public sealed class DbSystemConfigurationService : ISystemConfigurationService
     public DbSystemConfigurationService(
         ISharePasswordDbContextFactory dbContextFactory,
         IDatabaseOperationRunner databaseOperationRunner,
+        IPasswordCryptoService passwordCryptoService,
         IOptions<ApplicationOptions> applicationOptions,
         IOptions<MailOptions> mailOptions)
     {
         _dbContextFactory = dbContextFactory;
         _databaseOperationRunner = databaseOperationRunner;
+        _passwordCryptoService = passwordCryptoService;
         _applicationOptions = applicationOptions.Value;
         _mailOptions = mailOptions.Value;
         _currentTimeZoneId = NormalizeTimeZoneId(_applicationOptions.TimeZoneId);
@@ -60,7 +67,10 @@ public sealed class DbSystemConfigurationService : ISystemConfigurationService
                     configuration.SmtpHost = Trim(request.SmtpHost, 256);
                     configuration.SmtpPort = Math.Clamp(request.SmtpPort, 1, 65535);
                     configuration.SmtpUsername = Trim(request.SmtpUsername, 256);
-                    configuration.SmtpPassword = Trim(request.SmtpPassword, 512);
+                    if (!request.KeepExistingSmtpPassword)
+                    {
+                        configuration.SmtpPassword = EncryptSmtpPassword(Trim(request.SmtpPassword, MaxSmtpPasswordPlaintextLength));
+                    }
                     configuration.UseTls = request.UseTls;
                     configuration.SenderEmail = Trim(request.SenderEmail, 256);
                     configuration.SenderDisplayName = Trim(request.SenderDisplayName, 256);
@@ -215,7 +225,7 @@ public sealed class DbSystemConfigurationService : ISystemConfigurationService
             SmtpHost = Trim(_mailOptions.SmtpHost, 256),
             SmtpPort = Math.Clamp(_mailOptions.Port, 1, 65535),
             SmtpUsername = Trim(_mailOptions.Username, 256),
-            SmtpPassword = Trim(_mailOptions.Password, 512),
+            SmtpPassword = EncryptSmtpPassword(Trim(_mailOptions.Password, MaxSmtpPasswordPlaintextLength)),
             UseTls = _mailOptions.UseTls,
             SenderEmail = Trim(_mailOptions.SenderEmail, 256),
             SenderDisplayName = Trim(_mailOptions.SenderDisplayName, 256),
@@ -274,7 +284,49 @@ public sealed class DbSystemConfigurationService : ISystemConfigurationService
             changed = true;
         }
 
+        if (!string.IsNullOrEmpty(configuration.SmtpPassword) && !IsEncrypted(configuration.SmtpPassword))
+        {
+            configuration.SmtpPassword = EncryptSmtpPassword(Trim(configuration.SmtpPassword, MaxSmtpPasswordPlaintextLength));
+            changed = true;
+        }
+
         return changed;
+    }
+
+    private string EncryptSmtpPassword(string plaintext)
+    {
+        return string.IsNullOrEmpty(plaintext) ? string.Empty : _passwordCryptoService.Encrypt(plaintext);
+    }
+
+    private string DecryptSmtpPassword(string storedValue)
+    {
+        if (string.IsNullOrEmpty(storedValue))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            return _passwordCryptoService.Decrypt(storedValue);
+        }
+        catch (Exception exception) when (exception is FormatException or System.Security.Cryptography.CryptographicException or InvalidOperationException)
+        {
+            // Value predates encryption at rest; returned as-is until the startup migration rewrites it.
+            return storedValue;
+        }
+    }
+
+    private bool IsEncrypted(string storedValue)
+    {
+        try
+        {
+            _passwordCryptoService.Decrypt(storedValue);
+            return true;
+        }
+        catch (Exception exception) when (exception is FormatException or System.Security.Cryptography.CryptographicException or InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private static string NormalizeTimeZoneId(string? value)
@@ -298,7 +350,7 @@ public sealed class DbSystemConfigurationService : ISystemConfigurationService
         return Math.Clamp(value, 1, 1440);
     }
 
-    private static SystemConfiguration Clone(SystemConfiguration source)
+    private SystemConfiguration Clone(SystemConfiguration source)
     {
         return new SystemConfiguration
         {
@@ -307,7 +359,7 @@ public sealed class DbSystemConfigurationService : ISystemConfigurationService
             SmtpHost = source.SmtpHost,
             SmtpPort = source.SmtpPort,
             SmtpUsername = source.SmtpUsername,
-            SmtpPassword = source.SmtpPassword,
+            SmtpPassword = DecryptSmtpPassword(source.SmtpPassword),
             UseTls = source.UseTls,
             SenderEmail = source.SenderEmail,
             SenderDisplayName = source.SenderDisplayName,

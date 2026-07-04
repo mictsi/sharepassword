@@ -1,0 +1,27 @@
+name: sharepassword
+
+services:
+  sharepassword:
+    build: .
+    image: sharepassword
+    container_name: sharepassword
+    ports:
+      - "${SHAREPASSWORD_PORT:-8080}:8080"
+    volumes:
+      - sharepassword-data:/app/data
+    env_file:
+      # Full app configuration (generate with scripts/generate-env-file.sh).
+      # Values are used as-is; no variable interpolation is applied.
+      - path: .env.docker
+        required: false
+    environment:
+      # Shell-exported values win over .env.docker entries; unset variables
+      # are ignored, so they never blank out env_file values.
+      - AdminAuth__PasswordHash
+      - Encryption__Passphrase
+      - AdminAuth__Username
+    restart: unless-stopped
+
+volumes:
+  sharepassword-data:
+    name: sharepassword-data

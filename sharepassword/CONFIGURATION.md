@@ -8,7 +8,7 @@ Set strong values before deployment:
 
 - `AdminAuth:Username`: non-default admin name.
 - `AdminAuth:PasswordHash`: required password hash. New hashes use Argon2id and fall back to scrypt if Argon2id is unavailable. Legacy PBKDF2-SHA256 hashes are still accepted.
-- `Encryption:Passphrase`: long random secret (at least 32 chars).
+- `Encryption:Passphrase`: long random secret (32+ chars recommended). The app refuses to start when it is missing or shorter than 15 characters.
 
 Recommendations:
 
@@ -62,6 +62,42 @@ Authentication cookies remain session-only, so closing the browser ends the sess
 - `Application:AuthenticationSlidingExpiration`
 
 If exposing directly on internet, terminate TLS at app or trusted ingress and restrict inbound ports.
+
+### Reverse proxy and forwarded headers
+
+When the app runs behind a reverse proxy, enable forwarded-header processing so audit logs record the real client IP and IP-based checks (such as the local login fallback) see the actual caller instead of the proxy:
+
+```json
+"ForwardedHeaders": {
+  "Enabled": true,
+  "KnownProxies": [ "127.0.0.1" ],
+  "KnownNetworks": [ "10.0.0.0/8" ]
+}
+```
+
+`X-Forwarded-For` and `X-Forwarded-Proto` are only accepted from the listed proxies/networks; startup fails when the section is enabled without any trusted source configured.
+
+### Local login fallback with OIDC
+
+When OIDC is enabled, `OidcAuth:LocalLoginFallback` controls whether the built-in username/password form stays reachable:
+
+- `LoopbackOnly` (default): only requests from the app host itself can use the form (break-glass access).
+- `Never`: every sign-in goes through OIDC.
+- `Always`: the form stays available to everyone (not recommended).
+
+### Login throttling
+
+Failed username/password sign-ins are throttled per account. Defaults (5 attempts, 15-minute pause, 60-minute failure window) can be tuned:
+
+```json
+"LoginThrottle": {
+  "FailedAttemptLimit": 5,
+  "PauseMinutes": 15,
+  "FailureWindowMinutes": 60
+}
+```
+
+Throttle events appear in the audit log as `login.paused`.
 
 ## 3) Storage backend selection
 
@@ -180,6 +216,8 @@ Configure the `Mail` section if administrators and share creators should receive
   "ShareAccessedBodyTemplate": "A secure share has been used.\n\nShare ID: {{ShareId}}\nCreated by: {{CreatedBy}}\nRecipient: {{RecipientEmail}}\nShared username: {{SharedUsername}}\nAccessed by: {{AccessedBy}}\nAccessed at: {{AccessedAt}}\nExpires at: {{ExpiresAt}}\nTime zone: {{TimeZoneId}}"
 }
 ```
+
+The SMTP password is encrypted at rest with `Encryption:Passphrase` when stored in a database backend, and the admin mail form never echoes it back — leave the password field blank to keep the stored value. Existing plaintext values are encrypted automatically at startup.
 
 Template placeholders:
 

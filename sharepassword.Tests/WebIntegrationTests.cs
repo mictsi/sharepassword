@@ -1818,7 +1818,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 ["SqliteStorage:ApplyMigrationsOnStartup"] = "false",
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
-                ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
+                ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890-abcdef",
                 ["Share:CleanupIntervalSeconds"] = "3600"
             };
 
@@ -1943,7 +1943,7 @@ internal sealed class SqliteTestWebApplicationFactory : WebApplicationFactory<Pr
                 ["SqliteStorage:ConnectionString"] = TestSqliteDatabase.CreateConnectionString(DatabasePath),
                 ["AdminAuth:Username"] = TestAdminAuth.Username,
                 ["AdminAuth:PasswordHash"] = TestAdminAuth.PasswordHash,
-                ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890",
+                ["Encryption:Passphrase"] = "unit-test-passphrase-1234567890-abcdef",
                 ["Share:CleanupIntervalSeconds"] = "3600",
                 ["OidcAuth:Enabled"] = "false"
             };
