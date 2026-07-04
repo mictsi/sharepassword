@@ -67,6 +67,9 @@ load_env_file() {
 		value="${line#*=}"
 		key="${key#"${key%%[![:space:]]*}"}"
 		key="${key%"${key##*[![:space:]]}"}"
+		# Keys with dots (e.g. Logging__LogLevel__Microsoft.AspNetCore) cannot be
+		# exported by bash; compose reads them from the env_file directly.
+		[[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
 		if [[ ( "$value" == \"*\" && "$value" == *\" ) || ( "$value" == \'*\' && "$value" == *\' ) ]]; then
 			value="${value:1:-1}"
 		fi

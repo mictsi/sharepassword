@@ -42,20 +42,24 @@ dotnet run --project ./sharepassword/sharepassword.csproj
 
 `start-docker.sh` builds the image and manages the container through Docker Compose (`docker-compose.yml`). The container runs as a non-root user and stores the SQLite database in a named volume (`sharepassword-data`).
 
-Two secrets are required and can be exported or placed in a gitignored `.env.docker` file next to the script:
+Generate a full configuration file from the appsettings templates, fill in the secrets, and start:
 
 ```bash
-# Generate the admin password hash
+./scripts/generate-env-file.sh prod   # writes .env.prod from appsettings.json.in
+./scripts/generate-env-file.sh dev    # writes .env.dev (base + Development overlay)
+
+# Generate the admin password hash and put it in the file
 dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'
 
-export AdminAuth__PasswordHash='<output-from-above>'
-export Encryption__Passphrase='<random secret, minimum 15 chars, 32+ recommended>'
+cp .env.prod .env.docker       # start-docker.sh and compose read .env.docker
 
 ./start-docker.sh start        # build image + run container on port 8080
 ./start-docker.sh stop         # stop the container
 ./start-docker.sh clean        # remove container + image, keep data volume
 ./start-docker.sh clean --all  # also remove the data volume (deletes the database)
 ```
+
+The generator flattens the JSON templates to ASP.NET environment format (`Section__Key=value`), sets `ASPNETCORE_ENVIRONMENT`, omits `Kestrel__*` (the image binds port 8080 itself), and points the SQLite path at the data volume. It lists any placeholders that still need real values. Alternatively, export just `AdminAuth__PasswordHash` and `Encryption__Passphrase` in the shell and skip the file — the container then runs on image defaults.
 
 Set `SHAREPASSWORD_PORT` to publish a different host port. When running behind a reverse proxy, configure the `ForwardedHeaders` section so audit logs record real client IPs (see [sharepassword/CONFIGURATION.md](sharepassword/CONFIGURATION.md)).
 

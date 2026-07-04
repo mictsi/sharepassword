@@ -80,3 +80,5 @@ AGENTS.md.old
 .fake
 # Docker start script secrets
 .env.docker
+.env.prod
+.env.dev

@@ -9,9 +9,14 @@ services:
       - "${SHAREPASSWORD_PORT:-8080}:8080"
     volumes:
       - sharepassword-data:/app/data
+    env_file:
+      # Full app configuration (generate with scripts/generate-env-file.sh).
+      # Values are used as-is; no variable interpolation is applied.
+      - path: .env.docker
+        required: false
     environment:
-      # Passed through from the shell; start-docker.sh exports them
-      # (from the environment or .env.docker) before invoking compose.
+      # Shell-exported values win over .env.docker entries; unset variables
+      # are ignored, so they never blank out env_file values.
       - AdminAuth__PasswordHash
       - Encryption__Passphrase
       - AdminAuth__Username
