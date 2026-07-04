@@ -36,6 +36,11 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 	AzureStorage__TableAudit__PartitionKey=audit \
 	AdminAuth__Username=admin \
 	AdminAuth__PasswordHash= \
+	LoginThrottle__FailedAttemptLimit=5 \
+	LoginThrottle__PauseMinutes=15 \
+	LoginThrottle__FailureWindowMinutes=60 \
+	ForwardedHeaders__Enabled=false \
+	OidcAuth__LocalLoginFallback=LoopbackOnly \
 	OidcAuth__Enabled=false \
 	OidcAuth__Authority= \
 	OidcAuth__ClientId= \
@@ -55,4 +60,6 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 EXPOSE 8080
 
 COPY --from=build /app/publish .
+RUN mkdir -p /app/data && chown -R app:app /app/data
+USER app
 ENTRYPOINT ["dotnet", "sharepassword.dll"]

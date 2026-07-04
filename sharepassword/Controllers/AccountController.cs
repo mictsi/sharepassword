@@ -21,6 +21,8 @@ public class AccountController : Controller
     private readonly IAuditLogger _auditLogger;
     private readonly ILocalUserService _localUserService;
     private readonly IUsageMetricsService _usageMetricsService;
+    private readonly ILoginThrottleService _loginThrottleService;
+    private readonly IApplicationTime _applicationTime;
     private readonly string _adminRoleName;
     private readonly string _userRoleName;
 
@@ -29,13 +31,17 @@ public class AccountController : Controller
         IOptions<OidcAuthOptions> oidcAuthOptions,
         IAuditLogger auditLogger,
         ILocalUserService localUserService,
-        IUsageMetricsService usageMetricsService)
+        IUsageMetricsService usageMetricsService,
+        ILoginThrottleService loginThrottleService,
+        IApplicationTime applicationTime)
     {
         _adminAuthOptions = adminAuthOptions.Value;
         _oidcAuthOptions = oidcAuthOptions.Value;
         _auditLogger = auditLogger;
         _localUserService = localUserService;
         _usageMetricsService = usageMetricsService;
+        _loginThrottleService = loginThrottleService;
+        _applicationTime = applicationTime;
         _adminRoleName = string.IsNullOrWhiteSpace(_oidcAuthOptions.AdminRoleName) ? "Admin" : _oidcAuthOptions.AdminRoleName.Trim();
         _userRoleName = string.IsNullOrWhiteSpace(_oidcAuthOptions.UserRoleName) ? "User" : _oidcAuthOptions.UserRoleName.Trim();
     }
@@ -43,7 +49,7 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {
-        if (_oidcAuthOptions.Enabled && !IsLocalRequest())
+        if (_oidcAuthOptions.Enabled && !IsLocalLoginAllowed())
         {
             return RedirectToAction(nameof(ExternalLogin), new { returnUrl });
         }
@@ -57,7 +63,7 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(AdminLoginViewModel model, string? returnUrl = null)
     {
-        if (_oidcAuthOptions.Enabled && !IsLocalRequest())
+        if (_oidcAuthOptions.Enabled && !IsLocalLoginAllowed())
         {
             return RedirectToAction(nameof(ExternalLogin), new { returnUrl });
         }
@@ -67,6 +73,13 @@ public class AccountController : Controller
 
         if (!ModelState.IsValid)
         {
+            return View(model);
+        }
+
+        if (_loginThrottleService.GetPauseExpiryUtc(model.Username) is { } pauseExpiryUtc)
+        {
+            await _auditLogger.LogAsync("admin", model.Username, "login.paused", false, details: "Sign-in attempt while account sign-in is paused after repeated failures.");
+            ModelState.AddModelError(string.Empty, BuildLoginPausedMessage(pauseExpiryUtc));
             return View(model);
         }
 
@@ -90,9 +103,10 @@ public class AccountController : Controller
             if (!localAuthentication.Succeeded || localAuthentication.User is null)
             {
                 await _auditLogger.LogAsync("admin", model.Username, "local-user.login", false, details: localAuthentication.ErrorMessage ?? "Invalid username/password.");
-                ModelState.AddModelError(string.Empty, localAuthentication.ErrorMessage ?? "Invalid login attempt.");
-                return View(model);
+                return await RecordFailedLoginAsync(model);
             }
+
+            _loginThrottleService.RecordSuccess(model.Username);
 
             if (RequiresTotp(localAuthentication.User))
             {
@@ -111,9 +125,10 @@ public class AccountController : Controller
         if (!validUsername || !validPassword)
         {
             await _auditLogger.LogAsync("admin", model.Username, "admin.login", false, details: "Invalid username/password.");
-            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-            return View(model);
+            return await RecordFailedLoginAsync(model);
         }
+
+        _loginThrottleService.RecordSuccess(model.Username);
 
         var claims = new List<Claim>
         {
@@ -448,22 +463,41 @@ public class AccountController : Controller
         return RedirectToAction(nameof(Profile));
     }
 
-    private bool IsLocalRequest()
+    private async Task<IActionResult> RecordFailedLoginAsync(AdminLoginViewModel model)
     {
+        if (_loginThrottleService.RecordFailure(model.Username) is { } pauseExpiryUtc)
+        {
+            await _auditLogger.LogAsync("admin", model.Username, "login.paused", false, details: "Account sign-in paused after repeated failed attempts.");
+            ModelState.AddModelError(string.Empty, BuildLoginPausedMessage(pauseExpiryUtc));
+        }
+        else
+        {
+            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+        }
+
+        return View(model);
+    }
+
+    private string BuildLoginPausedMessage(DateTime pauseExpiryUtc)
+    {
+        var remainingMinutes = Math.Max(1, (int)Math.Ceiling((pauseExpiryUtc - _applicationTime.UtcNow).TotalMinutes));
+        return $"Too many failed sign-in attempts. Try again in {remainingMinutes} minute{(remainingMinutes == 1 ? string.Empty : "s")}.";
+    }
+
+    private bool IsLocalLoginAllowed()
+    {
+        if (string.Equals(_oidcAuthOptions.LocalLoginFallback, LocalLoginFallbackModes.Never, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.Equals(_oidcAuthOptions.LocalLoginFallback, LocalLoginFallbackModes.Always, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         var remoteIp = HttpContext.Connection.RemoteIpAddress;
-
-        if (remoteIp is null)
-        {
-            return true;
-        }
-
-        if (IPAddress.IsLoopback(remoteIp))
-        {
-            return true;
-        }
-
-        var localIp = HttpContext.Connection.LocalIpAddress;
-        return localIp is not null && remoteIp.Equals(localIp);
+        return remoteIp is null || IPAddress.IsLoopback(remoteIp);
     }
 
     private async Task SignInLocalUserAsync(LocalUser user)

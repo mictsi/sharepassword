@@ -10,7 +10,7 @@ public class PasswordCryptoServiceTests
     {
         var options = Microsoft.Extensions.Options.Options.Create(new EncryptionOptions
         {
-            Passphrase = "unit-test-passphrase-1234567890"
+            Passphrase = "unit-test-passphrase-1234567890-abcdef"
         });
 
         return new PasswordCryptoService(options);

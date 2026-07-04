@@ -7,6 +7,7 @@ public class MailConfigurationViewModel
     public int SmtpPort { get; set; } = 587;
     public string SmtpUsername { get; set; } = string.Empty;
     public string SmtpPassword { get; set; } = string.Empty;
+    public bool HasSmtpPassword { get; set; }
     public bool UseTls { get; set; } = true;
     public string SenderEmail { get; set; } = string.Empty;
     public string SenderDisplayName { get; set; } = string.Empty;

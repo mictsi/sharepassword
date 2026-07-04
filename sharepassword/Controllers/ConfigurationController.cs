@@ -31,7 +31,8 @@ public class ConfigurationController : Controller
             SmtpHost = configuration.SmtpHost,
             SmtpPort = configuration.SmtpPort,
             SmtpUsername = configuration.SmtpUsername,
-            SmtpPassword = configuration.SmtpPassword,
+            SmtpPassword = string.Empty,
+            HasSmtpPassword = !string.IsNullOrEmpty(configuration.SmtpPassword),
             UseTls = configuration.UseTls,
             SenderEmail = configuration.SenderEmail,
             SenderDisplayName = configuration.SenderDisplayName,
@@ -64,12 +65,15 @@ public class ConfigurationController : Controller
         var actor = GetCurrentUserIdentifier();
         try
         {
+            // A blank password field means "keep the currently stored password"; the
+            // stored value is never sent back to the browser.
             await _systemConfigurationService.UpdateMailConfigurationAsync(new MailConfigurationUpdateRequest
             {
                 SmtpHost = model.SmtpHost,
                 SmtpPort = model.SmtpPort,
                 SmtpUsername = model.SmtpUsername,
                 SmtpPassword = model.SmtpPassword,
+                KeepExistingSmtpPassword = string.IsNullOrEmpty(model.SmtpPassword),
                 UseTls = model.UseTls,
                 SenderEmail = model.SenderEmail,
                 SenderDisplayName = model.SenderDisplayName,
