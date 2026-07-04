@@ -1503,6 +1503,11 @@ body.action-login {
   color: var(--sp-primary);
 }
 
+.second-factor-action .second-factor-card__icon {
+  width: 3.25rem;
+  height: 3.25rem;
+}
+
 .controller-informationrequest.action-access .app-width--public {
   width: min(100% - 2rem, 720px);
 }

@@ -3,14 +3,21 @@
     ViewData["Title"] = "Passkey Sign-In";
 }
 
-<section class="auth-card"
+<section class="auth-card second-factor-action"
          data-passkey-login
          data-passkey-options-url="@Url.Action("PasskeyAssertionOptions")"
          data-passkey-verify-url="@Url.Action("PasskeyAssertionVerify")"
          data-passkey-return-url="@Model.ReturnUrl">
+    <svg class="second-factor-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="10" cy="7" r="4" />
+        <path d="M3 21v-1a6 6 0 0 1 9.3-5" />
+        <circle cx="17" cy="15" r="2.6" />
+        <path d="M18.9 16.9 22 20" />
+        <path d="m20.2 18.2 1.4-1.4" />
+    </svg>
     <div class="page-eyebrow">Verification</div>
-    <h1 class="page-title">Sign in with a passkey</h1>
-    <p class="page-subtitle">Use a registered passkey to complete the sign-in for @Model.Username.</p>
+    <h1 class="page-title">Login with passkey</h1>
+    <p class="page-subtitle">Select the button below to complete the sign-in for @Model.Username. Your browser will ask for your fingerprint, face, device screen lock, or security key.</p>
 
     <form>
         @Html.AntiForgeryToken()
@@ -19,10 +26,10 @@
     <div id="passkeyLoginError" class="alert alert-danger d-none" role="alert"></div>
 
     <div class="d-grid gap-3">
-        <button type="button" id="passkeyLoginButton" class="btn btn-primary">Use passkey</button>
+        <button type="button" id="passkeyLoginButton" class="btn btn-primary btn-lg">Login with passkey</button>
         @if (Model.HasTotp)
         {
-            <a class="btn btn-outline-primary" asp-action="Totp" asp-route-returnUrl="@Model.ReturnUrl">Use authenticator app code instead</a>
+            <a class="btn btn-outline-primary" asp-action="Totp" asp-route-returnUrl="@Model.ReturnUrl">Login with authenticator app instead</a>
         }
     </div>
 </section>
