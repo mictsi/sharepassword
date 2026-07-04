@@ -13,6 +13,9 @@ set -euo pipefail
 #   AdminAuth__PasswordHash    Generate with: dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'
 #   Encryption__Passphrase     At least 15 characters (32+ recommended)
 #
+# .env.docker lines are KEY=VALUE and read literally, so '$' in password
+# hashes needs no quoting or escaping.
+#
 # Optional environment:
 #   SHAREPASSWORD_PORT         Host port to publish (default 8080)
 
@@ -24,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env.docker"
 
 usage() {
-	sed -n '4,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+	sed -n '4,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 	exit 1
 }
 
@@ -35,14 +38,31 @@ require_docker() {
 	fi
 }
 
+# Values are read literally (no shell expansion), because admin password
+# hashes contain '$' (e.g. ARGON2ID$v=19$m=...). Lines are KEY=VALUE;
+# optional surrounding single or double quotes are stripped.
 load_env_file() {
-	if [[ -f "$ENV_FILE" ]]; then
-		echo "Loading environment from $ENV_FILE"
-		set -a
-		# shellcheck disable=SC1090
-		source "$ENV_FILE"
-		set +a
+	if [[ ! -f "$ENV_FILE" ]]; then
+		return
 	fi
+
+	echo "Loading environment from $ENV_FILE"
+	local line key value
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		[[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+		if [[ "$line" != *"="* ]]; then
+			echo "WARNING: ignoring malformed line in $ENV_FILE (expected KEY=VALUE)" >&2
+			continue
+		fi
+		key="${line%%=*}"
+		value="${line#*=}"
+		key="${key#"${key%%[![:space:]]*}"}"
+		key="${key%"${key##*[![:space:]]}"}"
+		if [[ ( "$value" == \"*\" && "$value" == *\" ) || ( "$value" == \'*\' && "$value" == *\' ) ]]; then
+			value="${value:1:-1}"
+		fi
+		export "$key=$value"
+	done < "$ENV_FILE"
 }
 
 start() {
