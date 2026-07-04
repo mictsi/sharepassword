@@ -1,0 +1,34 @@
+@model SharePassword.ViewModels.PasskeySetupViewModel
+@{
+    ViewData["Title"] = "Set Up Passkey";
+}
+
+<section class="auth-card"
+         data-passkey-register
+         data-passkey-options-url="@Url.Action("PasskeyRegistrationOptions")"
+         data-passkey-register-url="@Url.Action("PasskeyRegister")"
+         data-passkey-return-url="@Model.ReturnUrl">
+    <div class="page-eyebrow">Security setup</div>
+    <h1 class="page-title">Set up a passkey</h1>
+    <p class="page-subtitle">Register a passkey for @Model.Username. The browser will prompt for the device's screen lock, security key, or password manager.</p>
+
+    <form>
+        @Html.AntiForgeryToken()
+    </form>
+
+    <div id="passkeyRegisterError" class="alert alert-danger d-none" role="alert"></div>
+
+    <div class="mb-3">
+        <label for="passkeyDisplayName" class="form-label">Passkey name</label>
+        <input id="passkeyDisplayName" class="form-control" maxlength="128" placeholder="e.g. Work laptop" />
+    </div>
+
+    <div class="d-grid gap-3">
+        <button type="button" id="passkeyRegisterButton" class="btn btn-primary">Create passkey and finish sign-in</button>
+        <a class="btn btn-outline-primary" asp-action="TotpSetup" asp-route-returnUrl="@Model.ReturnUrl">Use an authenticator app instead</a>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="~/js/passkey.js" asp-append-version="true"></script>
+}

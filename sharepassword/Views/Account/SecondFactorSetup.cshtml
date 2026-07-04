@@ -1,0 +1,15 @@
+@model SharePassword.ViewModels.SecondFactorSetupViewModel
+@{
+    ViewData["Title"] = "Set Up Second Factor";
+}
+
+<section class="auth-card">
+    <div class="page-eyebrow">Security setup</div>
+    <h1 class="page-title">Set up a second factor</h1>
+    <p class="page-subtitle">The account @Model.Username requires a second factor at sign-in. Choose how to verify future sign-ins.</p>
+
+    <div class="d-grid gap-3">
+        <a class="btn btn-primary" asp-action="PasskeySetup" asp-route-returnUrl="@Model.ReturnUrl">Use a passkey</a>
+        <a class="btn btn-outline-primary" asp-action="TotpSetup" asp-route-returnUrl="@Model.ReturnUrl">Use an authenticator app</a>
+    </div>
+</section>

@@ -27,6 +27,19 @@ public class PasskeyRegisterRequest
 {
     public string Response { get; set; } = string.Empty;
     public string? DisplayName { get; set; }
+    public string? ReturnUrl { get; set; }
+}
+
+public class SecondFactorSetupViewModel
+{
+    public string Username { get; set; } = string.Empty;
+    public string? ReturnUrl { get; set; }
+}
+
+public class PasskeySetupViewModel
+{
+    public string Username { get; set; } = string.Empty;
+    public string? ReturnUrl { get; set; }
 }
 
 public class PasskeyAssertionVerifyRequest

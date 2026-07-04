@@ -185,8 +185,14 @@
 
                 const result = await postJson(container.dataset.passkeyRegisterUrl, {
                     response: JSON.stringify(encodeAttestationResponse(credential)),
-                    displayName: nameInput ? nameInput.value : ""
+                    displayName: nameInput ? nameInput.value : "",
+                    returnUrl: container.dataset.passkeyReturnUrl || null
                 });
+
+                if (result.succeeded && result.redirectUrl) {
+                    window.location.assign(result.redirectUrl);
+                    return;
+                }
 
                 if (result.succeeded) {
                     window.location.reload();

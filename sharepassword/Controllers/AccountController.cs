@@ -131,7 +131,16 @@ public class AccountController : Controller
                     return RedirectToAction(nameof(PasskeyLogin), new { returnUrl });
                 }
 
-                return RedirectToAction(hasTotp ? nameof(Totp) : nameof(TotpSetup), new { returnUrl });
+                if (hasTotp)
+                {
+                    return RedirectToAction(nameof(Totp), new { returnUrl });
+                }
+
+                // Nothing registered yet: let the user pick an enrollment method
+                // when passkeys are available, otherwise enroll TOTP directly.
+                return RedirectToAction(
+                    _passkeyService.IsEnabled ? nameof(SecondFactorSetup) : nameof(TotpSetup),
+                    new { returnUrl });
             }
 
             await CompleteLocalSignInAsync(localAuthentication.User);
@@ -266,6 +275,50 @@ public class AccountController : Controller
 
     [Authorize]
     [HttpGet]
+    public async Task<IActionResult> SecondFactorSetup(string? returnUrl = null)
+    {
+        var pendingUser = await GetPendingSecondFactorUserAsync();
+        if (pendingUser is null)
+        {
+            return RedirectToAction(nameof(Login), new { returnUrl });
+        }
+
+        if (!_passkeyService.IsEnabled)
+        {
+            return RedirectToAction(nameof(TotpSetup), new { returnUrl });
+        }
+
+        return View(new SecondFactorSetupViewModel
+        {
+            Username = pendingUser.Username,
+            ReturnUrl = returnUrl
+        });
+    }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> PasskeySetup(string? returnUrl = null)
+    {
+        var pendingUser = await GetPendingSecondFactorUserAsync();
+        if (pendingUser is null)
+        {
+            return RedirectToAction(nameof(Login), new { returnUrl });
+        }
+
+        if (!_passkeyService.IsEnabled)
+        {
+            return RedirectToAction(nameof(TotpSetup), new { returnUrl });
+        }
+
+        return View(new PasskeySetupViewModel
+        {
+            Username = pendingUser.Username,
+            ReturnUrl = returnUrl
+        });
+    }
+
+    [Authorize]
+    [HttpGet]
     public async Task<IActionResult> PasskeyLogin(string? returnUrl = null)
     {
         var pendingUser = await GetPendingSecondFactorUserAsync();
@@ -364,7 +417,9 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PasskeyRegistrationOptions()
     {
-        var user = await GetCurrentConfirmedLocalUserAsync();
+        // Fully signed-in users register from their profile; users enrolling a
+        // first second factor register from the pending-login setup page.
+        var user = await GetCurrentConfirmedLocalUserAsync() ?? await GetPendingSecondFactorUserAsync();
         if (user is null || !_passkeyService.IsEnabled)
         {
             return Forbid();
@@ -380,7 +435,9 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PasskeyRegister([FromBody] PasskeyRegisterRequest request)
     {
-        var user = await GetCurrentConfirmedLocalUserAsync();
+        var confirmedUser = await GetCurrentConfirmedLocalUserAsync();
+        var pendingUser = confirmedUser is null ? await GetPendingSecondFactorUserAsync() : null;
+        var user = confirmedUser ?? pendingUser;
         if (user is null || !_passkeyService.IsEnabled)
         {
             return Forbid();
@@ -399,6 +456,18 @@ public class AccountController : Controller
         }
 
         await _auditLogger.LogAsync(GetCurrentActorType(), user.Username, "local-user.passkey.register", true, targetType: "LocalUser", targetId: user.Id.ToString(), details: $"Passkey registered: {result.Passkey?.DisplayName}");
+
+        if (pendingUser is not null)
+        {
+            // Registering the first passkey during forced enrollment counts as
+            // completing the second factor for this sign-in.
+            await CompleteLocalSignInAsync(pendingUser);
+            var redirectUrl = Url.IsLocalUrl(request.ReturnUrl)
+                ? request.ReturnUrl!
+                : Url.Action(nameof(PostLogin)) ?? "/";
+            return Json(new { succeeded = true, redirectUrl });
+        }
+
         return Json(new { succeeded = true });
     }
 
