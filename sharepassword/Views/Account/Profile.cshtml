@@ -146,6 +146,18 @@ else
             <form class="d-none">@Html.AntiForgeryToken()</form>
         </section>
     }
+    else
+    {
+        <section class="surface-card form-section">
+            <div class="form-section__header">
+                <h2 class="surface-card__title">Passkeys</h2>
+                <p class="surface-card__subtitle mb-0">Passkeys let you complete sign-in with your fingerprint, face, device screen lock, or a security key instead of an authenticator app code.</p>
+            </div>
+            <div class="alert alert-secondary mb-0" role="status">
+                Passkeys are not enabled on this server. Ask an administrator to configure passkey support before you can add one.
+            </div>
+        </section>
+    }
 
     <form method="post" class="surface-card form-section">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
