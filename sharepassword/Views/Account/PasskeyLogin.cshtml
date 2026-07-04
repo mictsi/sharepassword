@@ -1,0 +1,60 @@
+@model SharePassword.ViewModels.PasskeyLoginViewModel
+@{
+    ViewData["Title"] = "Passkey Sign-In";
+}
+
+<section class="auth-card"
+         data-passkey-login
+         data-passkey-options-url="@Url.Action("PasskeyAssertionOptions")"
+         data-passkey-verify-url="@Url.Action("PasskeyAssertionVerify")"
+         data-passkey-return-url="@Model.ReturnUrl">
+    <div class="page-eyebrow">Verification</div>
+    <h1 class="page-title">Login with passkey</h1>
+    <p class="page-subtitle">Complete the sign-in for @Model.Username. Your browser will ask for your fingerprint, face, device screen lock, or security key.</p>
+
+    <form>
+        @Html.AntiForgeryToken()
+    </form>
+
+    <div id="passkeyLoginError" class="alert alert-danger d-none" role="alert"></div>
+
+    <div class="d-grid gap-3">
+        <button type="button" id="passkeyLoginButton" class="action-tile">
+            <svg class="action-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="10" cy="7" r="4" />
+                <path d="M3 21v-1a6 6 0 0 1 9.3-5" />
+                <circle cx="17" cy="15" r="2.6" />
+                <path d="M18.9 16.9 22 20" />
+                <path d="m20.2 18.2 1.4-1.4" />
+            </svg>
+            <span class="action-tile__body">
+                <span class="action-tile__title">Login with passkey</span>
+                <span class="action-tile__hint">Use this device's fingerprint, face, screen lock, or security key</span>
+            </span>
+            <svg class="action-tile__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m9 6 6 6-6 6" />
+            </svg>
+        </button>
+
+        @if (Model.HasTotp)
+        {
+            <a class="action-tile action-tile--muted" asp-action="Totp" asp-route-returnUrl="@Model.ReturnUrl">
+                <svg class="action-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="7" y="2.5" width="10" height="19" rx="2" />
+                    <path d="M11 18.5h2" />
+                </svg>
+                <span class="action-tile__body">
+                    <span class="action-tile__title">Login with authenticator app</span>
+                    <span class="action-tile__hint">Enter a 6-digit code from your authenticator app instead</span>
+                </span>
+                <svg class="action-tile__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m9 6 6 6-6 6" />
+                </svg>
+            </a>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <script src="~/js/passkey.js" asp-append-version="true"></script>
+}

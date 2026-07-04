@@ -51,6 +51,12 @@
     "Username": "admin",
     "PasswordHash": ""
   },
+  "Passkey": {
+    "Enabled": false,
+    "ServerDomain": "sharepassword.example.com",
+    "ServerName": "SharePassword",
+    "Origins": [ "https://sharepassword.example.com" ]
+  },
   "LoginThrottle": {
     "FailedAttemptLimit": 5,
     "PauseMinutes": 15,

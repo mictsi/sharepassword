@@ -23,6 +23,7 @@ public abstract class SharePasswordDbContext : DbContext
     public DbSet<InformationRequest> InformationRequests => Set<InformationRequest>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<LocalUser> LocalUsers => Set<LocalUser>();
+    public DbSet<LocalUserPasskey> LocalUserPasskeys => Set<LocalUserPasskey>();
     public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();
     public DbSet<UsageMetricCounter> UsageMetricCounters => Set<UsageMetricCounter>();
     public DbSet<UsageMetricEvent> UsageMetricEvents => Set<UsageMetricEvent>();
@@ -107,6 +108,24 @@ public abstract class SharePasswordDbContext : DbContext
         localUsers.Property(x => x.LastPasswordResetAtUtc).HasConversion(NullableUtcDateTimeConverter);
         localUsers.HasIndex(x => x.Username).IsUnique();
         localUsers.HasIndex(x => x.Email);
+
+        var localUserPasskeys = modelBuilder.Entity<LocalUserPasskey>();
+        localUserPasskeys.ToTable("LocalUserPasskeys");
+        localUserPasskeys.HasKey(x => x.Id);
+        localUserPasskeys.Property(x => x.CredentialId).IsRequired().HasMaxLength(512);
+        localUserPasskeys.Property(x => x.PublicKey).IsRequired().HasMaxLength(2048);
+        localUserPasskeys.Property(x => x.SignatureCounter).IsRequired();
+        localUserPasskeys.Property(x => x.Transports).HasMaxLength(128);
+        localUserPasskeys.Property(x => x.DisplayName).IsRequired().HasMaxLength(128);
+        localUserPasskeys.Property(x => x.CreatedAtUtc).IsRequired().HasConversion(UtcDateTimeConverter);
+        localUserPasskeys.Property(x => x.LastUsedAtUtc).HasConversion(NullableUtcDateTimeConverter);
+        localUserPasskeys.HasIndex(x => x.CredentialId).IsUnique();
+        localUserPasskeys.HasIndex(x => x.LocalUserId);
+        localUserPasskeys
+            .HasOne<LocalUser>()
+            .WithMany()
+            .HasForeignKey(x => x.LocalUserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         var systemConfigurations = modelBuilder.Entity<SystemConfiguration>();
         systemConfigurations.ToTable("SystemConfigurations");

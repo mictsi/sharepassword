@@ -13,12 +13,14 @@ public class UsersController : Controller
     private readonly ILocalUserService _localUserService;
     private readonly IAuditLogger _auditLogger;
     private readonly IUsageMetricsService _usageMetricsService;
+    private readonly IPasskeyService _passkeyService;
 
-    public UsersController(ILocalUserService localUserService, IAuditLogger auditLogger, IUsageMetricsService usageMetricsService)
+    public UsersController(ILocalUserService localUserService, IAuditLogger auditLogger, IUsageMetricsService usageMetricsService, IPasskeyService passkeyService)
     {
         _localUserService = localUserService;
         _auditLogger = auditLogger;
         _usageMetricsService = usageMetricsService;
+        _passkeyService = passkeyService;
     }
 
     [HttpGet]
@@ -199,6 +201,25 @@ public class UsersController : Controller
         await _auditLogger.LogAsync("admin", actor, "local-user.totp.reset", true, targetType: "LocalUser", targetId: id.ToString());
         await _usageMetricsService.RecordAsync("local-user.totp.reset", "admin", actor, relatedId: id.ToString(), details: $"TOTP setup reset for {result.User!.Username}.");
         TempData["StatusMessage"] = "Authenticator app setup reset.";
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemovePasskeys(Guid id)
+    {
+        var actor = GetCurrentUserIdentifier();
+        var user = await _localUserService.GetByIdAsync(id);
+        if (user is null)
+        {
+            TempData["StatusMessage"] = "The selected user could not be found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var removedCount = await _passkeyService.RemoveAllPasskeysAsync(id);
+        await _auditLogger.LogAsync("admin", actor, "local-user.passkey.reset", true, targetType: "LocalUser", targetId: id.ToString(), details: $"Removed {removedCount} passkey(s) for {user.Username}.");
+        await _usageMetricsService.RecordAsync("local-user.passkey.reset", "admin", actor, relatedId: id.ToString(), details: $"Passkeys reset for {user.Username}.");
+        TempData["StatusMessage"] = removedCount == 0 ? "The user has no passkeys." : $"Removed {removedCount} passkey(s).";
         return RedirectToAction(nameof(Edit), new { id });
     }
 

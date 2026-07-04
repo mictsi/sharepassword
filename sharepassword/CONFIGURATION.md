@@ -85,6 +85,25 @@ When OIDC is enabled, `OidcAuth:LocalLoginFallback` controls whether the built-i
 - `Never`: every sign-in goes through OIDC.
 - `Always`: the form stays available to everyone (not recommended).
 
+### Passkeys (WebAuthn)
+
+Local users can complete second-factor sign-in with a passkey instead of an authenticator code once the feature is configured:
+
+```json
+"Passkey": {
+  "Enabled": true,
+  "ServerDomain": "sharepassword.example.com",
+  "ServerName": "SharePassword",
+  "Origins": [ "https://sharepassword.example.com" ]
+}
+```
+
+- `ServerDomain` is the WebAuthn relying-party ID (the site's domain). Registered passkeys are bound to it — changing the domain invalidates every passkey.
+- `Origins` lists the exact web origins users sign in from; startup fails when the section is enabled without them.
+- Browsers only offer WebAuthn in a secure context, so the site must be served over HTTPS (localhost is exempt for development).
+- Users register passkeys from their profile; administrators can remove a user's passkeys from the user editor (audit operations `local-user.passkey.register`, `local-user.passkey.login`, `local-user.passkey.remove`, `local-user.passkey.reset`).
+- A user with both TOTP and passkeys gets a chooser during sign-in; either method completes the second factor.
+
 ### Login throttling
 
 Failed username/password sign-ins are throttled per account. Defaults (5 attempts, 15-minute pause, 60-minute failure window) can be tuned:

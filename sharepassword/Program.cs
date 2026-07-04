@@ -347,6 +347,27 @@ builder.Services
     .Validate(options => options.FailureWindowMinutes > 0, "LoginThrottle:FailureWindowMinutes must be greater than 0.")
     .ValidateOnStart();
 builder.Services.AddSingleton<ILoginThrottleService, LoginThrottleService>();
+builder.Services
+    .AddOptions<PasskeyOptions>()
+    .Bind(builder.Configuration.GetSection(PasskeyOptions.SectionName))
+    .Validate(
+        options => options.IsConfigurationValid(),
+        "Passkey is enabled but Passkey:ServerDomain and/or Passkey:Origins are missing or invalid. ServerDomain must be the site's domain (e.g. \"sharepassword.example.com\") and Origins must be absolute URLs (e.g. \"https://sharepassword.example.com\").")
+    .ValidateOnStart();
+builder.Services.AddSingleton<Fido2NetLib.IFido2>(serviceProvider =>
+{
+    var passkeyOptions = serviceProvider.GetRequiredService<IOptions<PasskeyOptions>>().Value;
+    return new Fido2NetLib.Fido2(new Fido2NetLib.Fido2Configuration
+    {
+        ServerDomain = string.IsNullOrWhiteSpace(passkeyOptions.ServerDomain) ? "localhost" : passkeyOptions.ServerDomain.Trim(),
+        ServerName = string.IsNullOrWhiteSpace(passkeyOptions.ServerName) ? "SharePassword" : passkeyOptions.ServerName.Trim(),
+        Origins = passkeyOptions.Origins
+            .Where(origin => !string.IsNullOrWhiteSpace(origin))
+            .Select(origin => origin.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase)
+    });
+});
+builder.Services.AddScoped<IPasskeyService, PasskeyService>();
 builder.Services.AddSingleton<IPasswordCryptoService, PasswordCryptoService>();
 builder.Services.AddSingleton<IAccessCodeService, AccessCodeService>();
 builder.Services.AddSingleton<ITotpService, TotpService>();
