@@ -77,3 +77,4 @@ AGENTS.md.old
 /.templateengine/
 /.tmp/
 /output/
+.fake
