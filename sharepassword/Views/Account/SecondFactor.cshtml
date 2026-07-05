@@ -1,10 +1,6 @@
 @model SharePassword.ViewModels.SecondFactorViewModel
 @{
     ViewData["Title"] = "Verify It's You";
-    // Only propagate the return URL if it is a local, relative path. This drops
-    // attacker-supplied absolute/javascript: URLs from the ?returnUrl= query param
-    // before they are written to the page (reflected XSS / open redirect).
-    var safeReturnUrl = Url.IsLocalUrl(Model.ReturnUrl) ? Model.ReturnUrl : null;
 }
 
 <div class="page-header">
@@ -18,7 +14,7 @@
 <div class="admin-console-grid" aria-label="Second factor sign-in options">
     @if (Model.HasPasskeys)
     {
-        <a class="surface-card admin-console-card" asp-action="PasskeyLogin" asp-route-returnUrl="@safeReturnUrl">
+        <a class="surface-card admin-console-card" href="@Url.ActionWithReturnUrl("PasskeyLogin", Model.ReturnUrl)">
             <div>
                 <svg class="second-factor-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="10" cy="7" r="4" />
@@ -36,7 +32,7 @@
     }
     @if (Model.HasTotp)
     {
-        <a class="surface-card admin-console-card" asp-action="Totp" asp-route-returnUrl="@safeReturnUrl">
+        <a class="surface-card admin-console-card" href="@Url.ActionWithReturnUrl("Totp", Model.ReturnUrl)">
             <div>
                 <svg class="second-factor-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="7" y="2.5" width="10" height="19" rx="2" />

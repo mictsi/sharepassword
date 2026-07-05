@@ -1,17 +1,13 @@
 @model SharePassword.ViewModels.PasskeySetupViewModel
 @{
     ViewData["Title"] = "Set Up Passkey";
-    // Only propagate the return URL if it is a local, relative path. This drops
-    // attacker-supplied absolute/javascript: URLs from the ?returnUrl= query param
-    // before they are written to the page (reflected XSS / open redirect).
-    var safeReturnUrl = Url.IsLocalUrl(Model.ReturnUrl) ? Model.ReturnUrl : null;
 }
 
 <section class="auth-card second-factor-action"
          data-passkey-register
          data-passkey-options-url="@Url.Action("PasskeyRegistrationOptions")"
          data-passkey-register-url="@Url.Action("PasskeyRegister")"
-         data-passkey-return-url="@safeReturnUrl">
+         data-passkey-return-url="@Url.SafeReturnUrlAttribute(Model.ReturnUrl)">
     <svg class="second-factor-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="10" cy="7" r="4" />
         <path d="M3 21v-1a6 6 0 0 1 9.3-5" />
@@ -52,7 +48,7 @@
             </svg>
         </button>
 
-        <a class="action-tile action-tile--muted" asp-action="TotpSetup" asp-route-returnUrl="@safeReturnUrl">
+        <a class="action-tile action-tile--muted" href="@Url.ActionWithReturnUrl("TotpSetup", Model.ReturnUrl)">
             <svg class="action-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="7" y="2.5" width="10" height="19" rx="2" />
                 <path d="M11 18.5h2" />
