@@ -3,20 +3,31 @@
 [![Build](https://github.com/mictsi/sharepassword/actions/workflows/build.yml/badge.svg)](https://github.com/mictsi/sharepassword/actions/workflows/build.yml)
 
 
-`sharepassword` helps teams share passwords and other sensitive text without leaving the secret in email, chat, or shared documents. An administrator creates a share with a recipient, secret text, optional instructions, and an expiration time. The app generates a unique access link and a separate one-time access code, so the link and code can be delivered through different channels.
+`sharepassword` is a secure exchange app built with ASP.NET Core (.NET 10). It runs two external-facing workflows behind one authenticated admin console:
 
-Recipients open the link, confirm their email address, and enter the access code before the secret is shown. Shares can be deleted after retrieval and expire automatically if they are not used. After sign-in, `/Dashboard` opens a two-card admin start page for `Admin console - Password shares` and `Admin console - Information requests`.
+- **Password shares** — hand a password or other sensitive text to a recipient without leaving it in email, chat, or shared documents. An app user creates a share with a recipient, secret text, optional instructions, and an expiration time. The app generates a unique access link and a separate `10`-character one-time access code, so the link and code can be delivered through different channels. Recipients open the link, confirm their email, and enter the access code before the secret is shown. Shares can be deleted after retrieval and expire automatically.
+- **Information requests** — collect information *back* from an external partner. App users create a request from the information-request console; the partner uses a secure link and a `15`-character access code to submit or update information until expiration. Reopening a submitted request prompts the partner to update it; a protected response is decrypted once in the browser and can be re-saved without re-entering the extra password during that page session.
 
-App users can also create information requests for external users from the information-request admin console. External users use a secure link and 15-character access code to submit or update information until expiration. If a submitted request is opened again, the user is prompted to update the submitted request; protected responses can be decrypted once in the browser and then saved again without re-entering the extra password during that page session. For higher-sensitivity secrets or responses, the browser-side extra-password encryption option stores only an encrypted payload on the server.
+After sign-in, `/Dashboard` opens a two-card start page for `Admin console - Password shares` and `Admin console - Information requests`. For higher-sensitivity secrets or responses, optional browser-side extra-password encryption stores only an encrypted payload on the server.
 
-Secure password sharing app built with ASP.NET Core (.NET 10).
-
-Supported storage backends for both shares and audit logs:
+Supported storage backends for both workflows and audit logs:
 
 - SQLite
 - SQL Server
 - PostgreSQL
 - Azure Key Vault + Azure Table Storage
+
+## Features
+
+A full inventory is in [docs/FEATURES.md](docs/FEATURES.md). In brief:
+
+- **Two workflows** — one-time password shares (`/s/{token}`) and information requests (`/r/{token}`), each with expiring links, separate access codes, per-item failed-attempt pause, automatic cleanup, and optional browser-side encryption.
+- **Access modes** — `Email + Code` or `Entra ID Required + Email + Code` (OIDC recipient verification).
+- **Accounts and roles** — configured local admin, database-backed local users, and optional OIDC/Microsoft Entra ID SSO mapped to `Admin`, `User`, and `Auditor` roles.
+- **Second factor** — authenticator app (TOTP) and passkeys (WebAuthn/FIDO2) for local accounts, with a sign-in method chooser, enrollment chooser, and admin reset.
+- **Encryption** — AES-GCM at rest for stored secrets/responses; Argon2id (scrypt fallback) password hashing; HMAC-SHA256 access-code hashes.
+- **Auditing** — audit log with date/actor/operation filtering, search, paging, and JSON export, plus persisted usage-metric counters.
+- **Operations** — Docker Compose lifecycle, Azure provisioning/deploy scripts, timezone and path-base support, mail notifications, and a `/health` database probe.
 
 ## Repository layout
 
@@ -65,7 +76,9 @@ Set `SHAREPASSWORD_PORT` to publish a different host port. When running behind a
 
 For full configuration and usage instructions, see:
 
+- [docs/FEATURES.md](docs/FEATURES.md)
 - [docs/app-overview.md](docs/app-overview.md)
+- [DESIGN.md](DESIGN.md)
 - [docs/flowDiagram.md](docs/flowDiagram.md)
 - [docs/CHANGELOG.md](docs/CHANGELOG.md)
 - [docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md)
@@ -94,6 +107,8 @@ The full admin authentication configuration is documented in `sharepassword/READ
 
 Beyond the share access controls described above, the app ships with:
 
+- Second-factor sign-in for local accounts: authenticator app (TOTP) and passkeys (WebAuthn/FIDO2), with method chooser and admin reset (`Passkey` section)
+- Built-in `Auditor` role and `AuditAccess` policy for read access to audit data without full admin rights
 - Per-account throttling of failed sign-ins (`LoginThrottle` section, audit-logged as `login.paused`)
 - Startup validation of `Encryption:Passphrase` (minimum 15 characters, 32+ recommended)
 - Access codes stored as keyed HMAC-SHA256 hashes

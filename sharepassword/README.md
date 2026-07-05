@@ -5,18 +5,20 @@
 
 Latest release: `0.5.1` (2026-05-03). See `../docs/RELEASE_NOTES.md`.
 
-Secure password sharing for external users with:
+Secure exchange for external users with:
 
-- Local admin login interface
-- External user access using unique link + email + access code
+- Password shares: send a secret via unique link (`/s/{token}`) + email + 10-character access code
+- Information requests: collect partner input via unique link (`/r/{token}`) + email + 15-character access code, with submit/update until expiry
+- Local admin login interface plus admin-managed local users and optional OIDC/Entra ID SSO
 - Selectable storage backend via configuration
 - EF Core-backed storage for SQLite, SQL Server, or PostgreSQL
 - Azure backend using Key Vault for shares and Azure Table Storage for audit logs
-- Automatic expiration and cleanup (default 4 hours)
-- Optional authenticator app codes for local accounts
-- Per-share failed access attempt pause controls
-- Optional browser-side secret encryption with an extra password
-- Audit logging for admin, user, and system operations
+- Automatic expiration and cleanup for shares and information requests (default 4 hours)
+- Second factor for local accounts: authenticator app (TOTP) and passkeys (WebAuthn/FIDO2)
+- `Admin`, `User`, and built-in `Auditor` roles
+- Per-share and per-request failed access attempt pause controls
+- Optional browser-side secret/response encryption with an extra password
+- Audit logging (with filtering and JSON export) for admin, user, and system operations
 
 ## Run
 
@@ -190,6 +192,26 @@ Database-backed storage modes support authenticator app codes for local accounts
 - Confirmed authenticator setup details are never shown again. If a user changes their authenticator, a new setup is generated and the old setup remains active until the new code is verified.
 - Admins can reset a user's authenticator setup from the user edit page when the current authenticator is lost. If the account still requires authenticator codes, the user must onboard again at next sign-in.
 
+### Passkeys (second factor)
+
+Local accounts can complete second-factor sign-in with a passkey (WebAuthn/FIDO2) instead of an authenticator code.
+
+- Enable and configure the `Passkey` section (`Enabled`, `ServerDomain`, `ServerName`, `Origins`). `ServerDomain` is the WebAuthn relying-party ID (the site domain) and `Origins` lists the exact HTTPS origins users sign in from; startup fails if the section is enabled without them.
+- Users register passkeys from their profile (up to 10 each); admins can remove a user's passkeys from the user edit page.
+- A user with both a passkey and a confirmed authenticator gets a chooser at sign-in; either completes the second factor.
+
+See `sharepassword/CONFIGURATION.md` for the full passkey configuration.
+
+### Sign-in hardening
+
+- `LoginThrottle:*` throttles repeated failed username/password attempts per account (audit operation `login.paused`).
+- `OidcAuth:LocalLoginFallback` (`LoopbackOnly` default / `Always` / `Never`) controls whether the local login form stays reachable when OIDC is enabled.
+- `ForwardedHeaders:*` enables trusted-proxy `X-Forwarded-For`/`X-Forwarded-Proto` handling so audit logs and IP checks see the real client.
+
+### Auditor role
+
+The built-in `Auditor` role grants read access to the audit log (`AuditAccess` policy) without full admin rights. Assign it to a local user from the user editor, or emit an OIDC app role claim named `Auditor` from the identity provider (group-to-role mapping in `OidcAuth` only covers the admin and user roles).
+
 ### Share access failed-attempt pause
 
 The application settings page includes per-share lockout controls:
@@ -304,6 +326,20 @@ Access code notes:
 - Access codes are exactly `10` characters long.
 - Allowed characters are uppercase letters, lowercase letters, numbers, `#`, and `-`.
 - Access codes are case-sensitive.
+
+### Information requests
+
+1. Open **Admin console - Information requests** and create a request with the partner email, instructions, and expiry (optionally requiring Entra ID sign-in).
+2. Send the partner email, unique link (`/r/{token}`), and expiration time by email.
+3. Send the `15`-character one-time access code separately (for example by SMS).
+4. The partner opens the link, proves access with email + code (or Entra ID + code), and submits their information.
+5. Reopening the link lets the partner update the submitted information until expiration.
+6. The requester can review the response, extend expiration (1–168 hours), or revoke the request; expired requests are removed automatically.
+
+Information request response notes:
+
+- Responses support the same browser-side extra-password encryption option as shares.
+- Failed email/code attempts are throttled per request using the same application settings as share access.
 
 ## Audit logs
 
