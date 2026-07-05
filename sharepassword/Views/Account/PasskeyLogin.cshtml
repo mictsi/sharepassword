@@ -1,13 +1,17 @@
 @model SharePassword.ViewModels.PasskeyLoginViewModel
 @{
     ViewData["Title"] = "Passkey Sign-In";
+    // Only propagate the return URL if it is a local, relative path. This drops
+    // attacker-supplied absolute/javascript: URLs from the ?returnUrl= query param
+    // before they are written to the page (reflected XSS / open redirect).
+    var safeReturnUrl = Url.IsLocalUrl(Model.ReturnUrl) ? Model.ReturnUrl : null;
 }
 
 <section class="auth-card"
          data-passkey-login
          data-passkey-options-url="@Url.Action("PasskeyAssertionOptions")"
          data-passkey-verify-url="@Url.Action("PasskeyAssertionVerify")"
-         data-passkey-return-url="@Model.ReturnUrl">
+         data-passkey-return-url="@safeReturnUrl">
     <div class="page-eyebrow">Verification</div>
     <h1 class="page-title">Login with passkey</h1>
     <p class="page-subtitle">Complete the sign-in for @Model.Username. Your browser will ask for your fingerprint, face, device screen lock, or security key.</p>
@@ -38,7 +42,7 @@
 
         @if (Model.HasTotp)
         {
-            <a class="action-tile action-tile--muted" asp-action="Totp" asp-route-returnUrl="@Model.ReturnUrl">
+            <a class="action-tile action-tile--muted" asp-action="Totp" asp-route-returnUrl="@safeReturnUrl">
                 <svg class="action-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="7" y="2.5" width="10" height="19" rx="2" />
                     <path d="M11 18.5h2" />
