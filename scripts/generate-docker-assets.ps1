@@ -1,13 +1,13 @@
 param(
-	[string]$SettingsFile = "./sharepassword/appsettings.json",
+	[string]$SettingsFile = "./sekura/appsettings.json",
 	[string]$OutputDirectory = "./artifacts/docker",
-	[string]$ServiceName = "sharepassword",
-	[string]$ContainerName = "sharepassword",
-	[string]$ImageName = "sharepassword:local",
+	[string]$ServiceName = "sekura",
+	[string]$ContainerName = "sekura",
+	[string]$ImageName = "sekura:local",
 	[string]$AppEnvironment = "Production",
 	[int]$ContainerPort = 8080,
 	[int]$HostPort = 8080,
-	[string]$SqliteContainerConnectionString = "Data Source=/app/data/sharepassword.db"
+	[string]$SqliteContainerConnectionString = "Data Source=/app/data/sekura.db"
 )
 
 Set-StrictMode -Version Latest
@@ -180,7 +180,7 @@ function Get-DockerSafeName {
 
 	$sanitizedValue = $Value -replace "[^a-zA-Z0-9_.-]", "-"
 	if ([string]::IsNullOrWhiteSpace($sanitizedValue)) {
-		return "sharepassword"
+		return "sekura"
 	}
 
 	return $sanitizedValue

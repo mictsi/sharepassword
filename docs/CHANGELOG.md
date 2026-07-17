@@ -8,7 +8,7 @@ All notable changes to this project are documented in this file.
 - Added an information request workflow so app users can request external partner input through expiring secure links, 15-character access codes, audit logging, failed-attempt pauses, automatic cleanup, expiration extension, and optional browser-side response encryption.
 - Added EF Core-backed storage support for `sqlite`, `sqlserver`, and `postgresql`.
 - Added provider-specific migrations and automatic schema migration on application startup.
-- Added unified database persistence for both password shares and audit logs.
+- Added unified database persistence for both secure shares and audit logs.
 - Added configurable `Storage:Backend` selection with per-backend config sections.
 - Restored Azure storage backend support using Key Vault for shares and Table Storage for audit logs.
 - Added optional browser-side secret encryption using an extra password, including create/retrieve UI and provider-specific schema metadata.
@@ -58,8 +58,8 @@ All notable changes to this project are documented in this file.
 - Added repository instruction files and agent guidance.
 
 ### Changed
-- Renamed the main project from `sharepasswordAzure` to `sharepassword`.
-- Renamed the solution from `sharepasswordAzure.sln` to `sharepassword.sln`.
+- Renamed the main project from `sekuraAzure` to `sekura`.
+- Renamed the solution from `sekuraAzure.sln` to `sekura.sln`.
 - Refactored database operations to use `IDatabaseOperationRunner` for improved resilience and error handling.
 - Refactored the admin UI, shared layout, and styling for a broader platform-oriented experience.
 - Updated package references and release artifact workflow validation.
@@ -104,10 +104,10 @@ All notable changes to this project are documented in this file.
 ## [0.2.6] - 2026-02-25
 
 ### Added
-- Added `Instructions` field in password share creation flow with multiline support and a `1000` character limit.
+- Added `Instructions` field in secure share creation flow with multiline support and a `1000` character limit.
 - Added live character counter and over-limit warning for `Instructions` in admin create form.
 - Added `Instructions` display in retrieved credential view using readonly textarea to preserve formatting.
-- Added explicit sharing guidance in "Password Share Created" page:
+- Added explicit sharing guidance in "Secure Share Created" page:
 	- Send recipient, link, and expiration time by email.
 	- Send access code via SMS to recipient mobile phone.
 
@@ -117,12 +117,12 @@ All notable changes to this project are documented in this file.
 - Added `rel="noopener noreferrer"` to external share link on created page.
 
 ### Changed
-- Updated project version metadata in `sharepassword.csproj` to `0.2.6`.
+- Updated project version metadata in `sekura.csproj` to `0.2.6`.
 
 ### Verified
 - Solution build succeeds.
 - Test suite passes (`12` tests).
-- Release: https://github.com/mictsi/sharepassword/releases/tag/0.2.6
+- Release: https://github.com/mictsi/sekura/releases/tag/0.2.6
 
 ## [0.2.5] - 2026-02-24
 
@@ -131,12 +131,12 @@ All notable changes to this project are documented in this file.
 - Added integration test coverage to validate authentication cookie is issued as a non-persistent session cookie (no `Expires`/`Max-Age`).
 
 ### Changed
-- Updated project version metadata in `sharepassword.csproj` to `0.2.5`.
+- Updated project version metadata in `sekura.csproj` to `0.2.5`.
 
 ### Verified
 - Solution build succeeds.
 - Test suite passes.
-- Release: https://github.com/mictsi/sharepassword/releases/tag/0.2.5
+- Release: https://github.com/mictsi/sekura/releases/tag/0.2.5
 
 ## [0.2.4] - 2026-02-24
 
@@ -148,13 +148,13 @@ All notable changes to this project are documented in this file.
 ### Changed
 - Hardened authentication cookie behavior: secure-only cookie policy and non-persistent sign-in so sessions expire when browser is closed.
 - Updated local development defaults to HTTPS (`https://localhost:7099`) across development settings, launch profiles, and startup script examples.
-- Enhanced App Service deployment script to read settings from `sharepassword/appsettings.Development.json` by default and correctly apply complex app settings (including SAS URLs and OIDC arrays).
-- Updated project version metadata in `sharepassword.csproj` to `0.2.4`.
+- Enhanced App Service deployment script to read settings from `sekura/appsettings.Development.json` by default and correctly apply complex app settings (including SAS URLs and OIDC arrays).
+- Updated project version metadata in `sekura.csproj` to `0.2.4`.
 
 ### Verified
 - Solution build succeeds.
 - Test suite passes.
-- Release: https://github.com/mictsi/sharepassword/releases/tag/0.2.4
+- Release: https://github.com/mictsi/sekura/releases/tag/0.2.4
 
 ## [0.2.3] - 2026-02-24
 
@@ -167,12 +167,12 @@ All notable changes to this project are documented in this file.
 ### Changed
 - Updated create form secret field from single-line password input to multiline textarea for preserving formatting.
 - Updated credential display to render secret text in a readonly textarea to preserve line breaks and special characters.
-- Updated project version metadata in `sharepassword.csproj` to `0.2.3`.
+- Updated project version metadata in `sekura.csproj` to `0.2.3`.
 
 ### Verified
 - Solution build succeeds.
 - Test suite passes (`10` tests).
-- Release: https://github.com/mictsi/sharepassword/releases/tag/0.2.3
+- Release: https://github.com/mictsi/sekura/releases/tag/0.2.3
 
 ## [0.2.2] - 2026-02-23
 
@@ -181,9 +181,9 @@ All notable changes to this project are documented in this file.
 - Added route-scoped Admin/Share UI refinements for tables, forms, badges, headings, and pagination.
 
 ### Changed
-- Moved the application logo to `sharepassword/wwwroot/images/logo.png` and updated shared layout branding.
+- Moved the application logo to `sekura/wwwroot/images/logo.png` and updated shared layout branding.
 - Updated access mode badge wording from `Entra ID Required` to `Entra ID Required + Email + Code`.
-- Updated project version metadata in `sharepassword.csproj` to `0.2.2`.
+- Updated project version metadata in `sekura.csproj` to `0.2.2`.
 
 ### Verified
 - Solution build succeeds.
@@ -271,7 +271,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - Updated jQuery from `3.7.1` to `4.0.0` in vendored frontend assets.
-- Refreshed files in `sharepassword/wwwroot/lib/jquery/dist`.
+- Refreshed files in `sekura/wwwroot/lib/jquery/dist`.
 
 ### Verified
 - Solution build succeeds.
@@ -280,7 +280,7 @@ All notable changes to this project are documented in this file.
 ## [0.1.0] - 2026-02-19
 
 ### Added
-- Initial public release of the `sharepassword` application.
+- Initial public release of the `sekura` application.
 - ASP.NET Core web app for secure password sharing with expiring links and access codes.
 - Azure Key Vault integration for encrypted credential storage.
 - Azure Table Storage-based audit logging.

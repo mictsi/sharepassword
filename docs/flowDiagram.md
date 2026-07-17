@@ -1,10 +1,10 @@
 # User flow diagrams
 
-## Password share flow
+## Secure share flow
 
 ```mermaid
 flowchart TD
-    S1["1. User signs in"] --> S2["2. User creates a password share"]
+    S1["1. User signs in"] --> S2["2. User creates a secure share"]
     S2 --> S3["3. App generates a secure link and access code"]
     S3 --> S4["4. User sends recipient, link, and expiration by email"]
     S4 --> S4A["5. User sends access code by SMS"]

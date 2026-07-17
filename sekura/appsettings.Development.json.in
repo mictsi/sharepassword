@@ -1,0 +1,98 @@
+{
+  "Application": {
+    "Name": "Sekura",
+    "EnableHttpsRedirection": true,
+    "PathBase": "/",
+    "TimeZoneId": "UTC",
+    "AuthenticationSessionTimeoutMinutes": 60,
+    "AuthenticationSlidingExpiration": true
+  },
+  "Kestrel": {
+    "Endpoints": {
+      "Https": {
+        "Url": "https://localhost:7099"
+      }
+    }
+  },
+  "Storage": {
+    "Backend": "sqlite"
+  },
+  "SqliteStorage": {
+    "ConnectionString": "Data Source=App_Data/sekura-dev.db",
+    "ApplyMigrationsOnStartup": true
+  },
+  "SqlServerStorage": {
+    "ConnectionString": "Server=tcp:sql.example.com,1433;Database=SekuraDev;Encrypt=True;TrustServerCertificate=False;User ID=sekura_app;Password=ChangeThisPassword!",
+    "ApplyMigrationsOnStartup": true
+  },
+  "PostgresqlStorage": {
+    "ConnectionString": "Host=localhost;Port=5432;Database=sekura_dev;Username=sekura_app;Password=ChangeThisPassword!;SSL Mode=Require;Trust Server Certificate=false",
+    "ApplyMigrationsOnStartup": true
+  },
+  "AzureStorage": {
+    "KeyVault": {
+      "VaultUri": "",
+      "TenantId": "",
+      "ClientId": "",
+      "ClientSecret": "",
+      "SecretPrefix": "sekura"
+    },
+    "TableAudit": {
+      "ServiceSasUrl": "",
+      "TableName": "auditlogs",
+      "PartitionKey": "audit"
+    }
+  },
+  "AdminAuth": {
+    "Username": "admin",
+    "PasswordHash": ""
+  },
+  "OidcAuth": {
+    "Enabled": false,
+    "Authority": "https://login.example.com",
+    "ClientId": "sekura-app",
+    "ClientSecret": "",
+    "LogTokensForTroubleshooting": false,
+    "CallbackPath": "/signin-oidc",
+    "SignedOutCallbackPath": "/signout-callback-oidc",
+    "RequireHttpsMetadata": true,
+    "Scopes": [ "openid", "profile", "email" ],
+    "GroupClaimType": "groups",
+    "AdminRoleName": "Admin",
+    "UserRoleName": "User",
+    "AdminGroups": [ "<entra-group-id-for-admins>" ],
+    "UserGroups": [ "<entra-group-id-for-users>" ]
+  },
+  "Encryption": {
+    "Passphrase": "dev-only-passphrase-change-before-production"
+  },
+  "Share": {
+    "DefaultExpiryHours": 4,
+    "CleanupIntervalSeconds": 30
+  },
+  "Mail": {
+    "SmtpHost": "localhost",
+    "Port": 2525,
+    "Username": "",
+    "Password": "",
+    "UseTls": false,
+    "SenderEmail": "sekura-dev@example.com",
+    "SenderDisplayName": "Sekura Dev",
+    "AdminNotificationRecipients": "admin@example.com",
+    "NotifyAdminsOnShareAccess": true,
+    "NotifyCreatorOnShareAccess": true,
+    "ShareAccessedSubjectTemplate": "Share used: {{SharedUsername}} for {{RecipientEmail}}",
+    "ShareAccessedBodyTemplate": "A secure share has been used.\n\nShare ID: {{ShareId}}\nCreated by: {{CreatedBy}}\nRecipient: {{RecipientEmail}}\nShared username: {{SharedUsername}}\nAccessed by: {{AccessedBy}}\nAccessed at: {{AccessedAt}}\nExpires at: {{ExpiresAt}}\nTime zone: {{TimeZoneId}}"
+  },
+  "ConsoleAuditLogging": {
+    "Enabled": true,
+    "Level": "DEBUG"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Error"
+    }
+  }
+}

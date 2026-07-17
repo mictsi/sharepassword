@@ -1,0 +1,51 @@
+@model Sekura.ViewModels.SecondFactorViewModel
+@{
+    ViewData["Title"] = "Verify It's You";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Verification</div>
+        <h1 class="page-title">Verify it's you</h1>
+        <p class="page-subtitle">Complete the sign-in for @Model.Username with one of the methods registered on this account.</p>
+    </div>
+</div>
+
+<div class="admin-console-grid" aria-label="Second factor sign-in options">
+    @if (Model.HasPasskeys)
+    {
+        <a class="surface-card admin-console-card" href="@Url.ActionWithReturnUrl("PasskeyLogin", Model.ReturnUrl)">
+            <div>
+                <svg class="second-factor-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="10" cy="7" r="4" />
+                    <path d="M3 21v-1a6 6 0 0 1 9.3-5" />
+                    <circle cx="17" cy="15" r="2.6" />
+                    <path d="M18.9 16.9 22 20" />
+                    <path d="m20.2 18.2 1.4-1.4" />
+                </svg>
+                <span class="page-eyebrow">Passkey</span>
+                <h2 class="admin-console-card__title">Login with passkey</h2>
+                <p class="admin-console-card__text">Use your fingerprint, face, device screen lock, or security key. Your browser will show the passkey prompt.</p>
+            </div>
+            <span class="admin-console-card__action">Use passkey</span>
+        </a>
+    }
+    @if (Model.HasTotp)
+    {
+        <a class="surface-card admin-console-card" href="@Url.ActionWithReturnUrl("Totp", Model.ReturnUrl)">
+            <div>
+                <svg class="second-factor-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="7" y="2.5" width="10" height="19" rx="2" />
+                    <path d="M11 18.5h2" />
+                    <circle cx="10" cy="10.5" r="0.4" fill="currentColor" />
+                    <circle cx="12" cy="10.5" r="0.4" fill="currentColor" />
+                    <circle cx="14" cy="10.5" r="0.4" fill="currentColor" />
+                </svg>
+                <span class="page-eyebrow">Authenticator app</span>
+                <h2 class="admin-console-card__title">Login with authenticator app</h2>
+                <p class="admin-console-card__text">Open the authenticator app on your phone and enter the current 6-digit code for this account.</p>
+            </div>
+            <span class="admin-console-card__action">Use authenticator code</span>
+        </a>
+    }
+</div>

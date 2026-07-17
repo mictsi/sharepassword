@@ -14,8 +14,8 @@ param(
 	[Parameter(Mandatory = $true)]
 	[string]$WebAppName,
 
-	[string]$SettingsFile = "./sharepassword/appsettings.json",
-	[string]$ProjectPath = "./sharepassword/sharepassword.csproj",
+	[string]$SettingsFile = "./sekura/appsettings.json",
+	[string]$ProjectPath = "./sekura/sekura.csproj",
 	[string]$Configuration = "Release",
 	[string]$OutputDirectory = "./artifacts/deploy/appservice",
 	[string]$Sku = "B1",

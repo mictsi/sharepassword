@@ -1,8 +1,8 @@
-# SharePassword App Overview
+# Sekura App Overview
 
-SharePassword is a secure exchange app. It helps internal users move sensitive information across an organizational boundary in two directions, without placing that information directly in email, chat, or a ticket:
+Sekura is a secure exchange app. It helps internal users move sensitive information across an organizational boundary in two directions, without placing that information directly in email, chat, or a ticket:
 
-- **Password shares** — send a temporary password, API key, or other secret *to* another person.
+- **Secure shares** — send a temporary password, API key, or other secret *to* another person.
 - **Information requests** — collect information *back from* an external partner.
 
 Both workflows use expiring links, a separate access code, auditing, and optional browser-side encryption. After sign-in, a two-card dashboard lets a user pick which console to work in.
@@ -14,11 +14,11 @@ Both workflows use expiring links, a separate access code, auditing, and optiona
 - Partner: the external person who submits or updates information for a request.
 - Administrator: the person who configures users, authentication, storage, auditing, and operational settings.
 
-## Password Shares
+## Secure Shares
 
 ### What A Sender Does
 
-1. Sign in and open **Admin console - Password shares**.
+1. Sign in and open **Admin console - Secure shares**.
 2. Create a secure share.
 3. Enter the recipient email, username or account name, secret, optional instructions, and expiration time.
 4. Choose access controls, such as Microsoft Entra ID sign-in or extra-password protection.
@@ -94,5 +94,5 @@ Important limitation: browser-side encryption does not protect against an admini
 
 ## In Short
 
-SharePassword is for safely handing a secret to someone, or safely collecting information back from someone, for a limited time. It gives internal users controlled delivery, tracking, revocation, expiration, and optional browser-side encryption when the stored value should not be readable by the server. See [FEATURES.md](FEATURES.md) for the complete feature inventory and [../DESIGN.md](../DESIGN.md) for the architecture.
+Sekura is for safely handing a secret to someone, or safely collecting information back from someone, for a limited time. It gives internal users controlled delivery, tracking, revocation, expiration, and optional browser-side encryption when the stored value should not be readable by the server. See [FEATURES.md](FEATURES.md) for the complete feature inventory and [../DESIGN.md](../DESIGN.md) for the architecture.
 </content>

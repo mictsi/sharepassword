@@ -1,14 +1,14 @@
-name: sharepassword
+name: sekura
 
 services:
-  sharepassword:
+  sekura:
     build: .
-    image: sharepassword
-    container_name: sharepassword
+    image: sekura
+    container_name: sekura
     ports:
-      - "${SHAREPASSWORD_PORT:-8080}:8080"
+      - "${SEKURA_PORT:-8080}:8080"
     volumes:
-      - sharepassword-data:/app/data
+      - sekura-data:/app/data
     env_file:
       # Full app configuration (generate with scripts/generate-env-file.sh).
       # Values are used as-is; no variable interpolation is applied.
@@ -23,5 +23,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  sharepassword-data:
-    name: sharepassword-data
+  sekura-data:
+    name: sekura-data

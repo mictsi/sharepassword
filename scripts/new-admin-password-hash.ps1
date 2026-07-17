@@ -30,14 +30,14 @@ if ([string]::IsNullOrWhiteSpace($Password)) {
     throw "Password cannot be empty."
 }
 
-$projectPath = Join-Path $PSScriptRoot "..\sharepassword\sharepassword.csproj"
+$projectPath = Join-Path $PSScriptRoot "..\sekura\sekura.csproj"
 $projectPath = [IO.Path]::GetFullPath($projectPath)
 
 if (-not (Test-Path -LiteralPath $projectPath)) {
-    throw "Could not find sharepassword.csproj at $projectPath"
+    throw "Could not find sekura.csproj at $projectPath"
 }
 
-$envVarName = "SHAREPASSWORD_HASH_PASSWORD"
+$envVarName = "SEKURA_HASH_PASSWORD"
 $previousValue = [Environment]::GetEnvironmentVariable($envVarName, "Process")
 
 try {

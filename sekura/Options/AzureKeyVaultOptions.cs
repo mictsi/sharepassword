@@ -1,0 +1,12 @@
+namespace Sekura.Options;
+
+public class AzureKeyVaultOptions
+{
+    public const string SectionName = "AzureStorage:KeyVault";
+
+    public string VaultUri { get; set; } = string.Empty;
+    public string? TenantId { get; set; }
+    public string? ClientId { get; set; }
+    public string? ClientSecret { get; set; }
+    public string SecretPrefix { get; set; } = "sekura";
+}

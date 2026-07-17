@@ -1,12 +1,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY ["sharepassword/sharepassword.csproj", "sharepassword/"]
-RUN dotnet restore "sharepassword/sharepassword.csproj"
+COPY ["sekura/sekura.csproj", "sekura/"]
+RUN dotnet restore "sekura/sekura.csproj"
 
 COPY . .
-WORKDIR "/src/sharepassword"
-RUN dotnet publish "sharepassword.csproj" -c Release -o /app/publish /p:UseAppHost=false
+WORKDIR "/src/sekura"
+RUN dotnet publish "sekura.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
@@ -20,7 +20,7 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 	Application__AuthenticationSlidingExpiration=true \
 	Kestrel__Endpoints__Http__Url=http://+:8080 \
 	Storage__Backend=sqlite \
-	SqliteStorage__ConnectionString="Data Source=/app/data/sharepassword.db" \
+	SqliteStorage__ConnectionString="Data Source=/app/data/sekura.db" \
 	SqliteStorage__ApplyMigrationsOnStartup=true \
 	SqlServerStorage__ConnectionString= \
 	SqlServerStorage__ApplyMigrationsOnStartup=true \
@@ -30,7 +30,7 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 	AzureStorage__KeyVault__TenantId= \
 	AzureStorage__KeyVault__ClientId= \
 	AzureStorage__KeyVault__ClientSecret= \
-	AzureStorage__KeyVault__SecretPrefix=sharepassword \
+	AzureStorage__KeyVault__SecretPrefix=sekura \
 	AzureStorage__TableAudit__ServiceSasUrl= \
 	AzureStorage__TableAudit__TableName=auditlogs \
 	AzureStorage__TableAudit__PartitionKey=audit \
@@ -62,4 +62,4 @@ EXPOSE 8080
 COPY --from=build /app/publish .
 RUN mkdir -p /app/data && chown -R app:app /app/data
 USER app
-ENTRYPOINT ["dotnet", "sharepassword.dll"]
+ENTRYPOINT ["dotnet", "sekura.dll"]

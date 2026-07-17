@@ -1,0 +1,207 @@
+@model Sekura.ViewModels.AdminAuditViewModel
+@{
+    ViewData["Title"] = "Audit Logs";
+
+    string FormatStamp(DateTime value)
+    {
+        var local = ApplicationTime.ConvertUtcToApplicationTime(value);
+        return $"{local:MMM dd, yyyy HH:mm} {ApplicationTime.TimeZoneId}";
+    }
+
+    string TruncateTarget(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length <= 18)
+        {
+            return value ?? "n/a";
+        }
+
+        return value[..8] + "..." + value[^6..];
+    }
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Oversight</div>
+        <h1 class="page-title">Audit logs</h1>
+        <p class="page-subtitle">Track share creation, retrieval, revocation, and sign-in events with filters tuned for investigation.</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+}
+
+<form method="get" class="surface-card filter-toolbar">
+    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+
+    <div class="filter-toolbar__grid">
+        <div class="filter-toolbar__field">
+            <label for="auditSearch">Search</label>
+            <input id="auditSearch" type="text" name="search" value="@Model.Search" class="form-control" placeholder="Search details, target, or IP" />
+        </div>
+        <div class="filter-toolbar__field">
+            <label for="auditActor">Actor</label>
+            <input id="auditActor" type="text" name="actor" value="@Model.Actor" class="form-control" placeholder="admin or user identifier" />
+        </div>
+        <div class="filter-toolbar__field">
+            <label for="auditOperation">Operation</label>
+            <select id="auditOperation" name="operation" class="form-select">
+                <option value="@Sekura.ViewModels.AdminAuditOperationOption.All" selected="@(Model.SelectedOperation == Sekura.ViewModels.AdminAuditOperationOption.All)">All operations</option>
+                @if (Model.SelectedOperation != Sekura.ViewModels.AdminAuditOperationOption.All && !Model.AvailableOperations.Contains(Model.SelectedOperation, StringComparer.OrdinalIgnoreCase))
+                {
+                    <option value="@Model.SelectedOperation" selected="selected">@Model.SelectedOperation</option>
+                }
+                @foreach (var operation in Model.AvailableOperations)
+                {
+                    <option value="@operation" selected="@(operation == Model.SelectedOperation)">@operation</option>
+                }
+            </select>
+        </div>
+        <div class="filter-toolbar__field">
+            <label for="auditSuccess">Result</label>
+            <select id="auditSuccess" name="success" class="form-select">
+                @foreach (var option in Sekura.ViewModels.AdminAuditSuccessOption.AllValues)
+                {
+                    <option value="@option" selected="@(option == Model.SelectedSuccess)">@Sekura.ViewModels.AdminAuditSuccessOption.GetLabel(option)</option>
+                }
+            </select>
+        </div>
+        <div class="filter-toolbar__field">
+            <label for="auditRange">Date range</label>
+            <select id="auditRange" name="range" class="form-select">
+                @foreach (var range in Sekura.ViewModels.AdminAuditRangeOption.AllValues)
+                {
+                    <option value="@range" selected="@(range == Model.SelectedRange)">@Sekura.ViewModels.AdminAuditRangeOption.GetLabel(range)</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="filter-toolbar__actions">
+        <button type="submit" class="btn btn-primary">Apply filters</button>
+        @if (Model.HasFilters)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Audit">Clear filters</a>
+        }
+        <button type="submit" class="btn btn-outline-secondary" formaction="@Url.Action("ExportAuditJson")" formmethod="get">Export JSON</button>
+    </div>
+</form>
+
+<section class="surface-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h2 class="surface-card__title">Filtered events</h2>
+        <p class="surface-card__subtitle mb-0">Showing @Model.Logs.Count of @Model.TotalCount events. Times use @ApplicationTime.TimeZoneId.</p>
+    </div>
+
+    @if (Model.Logs.Count == 0)
+    {
+        <div class="empty-state">
+            <h2 class="empty-state__title">No audit events match the current filters</h2>
+            <p class="empty-state__text">Try a wider date range or clear the actor and operation filters.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table data-table">
+                <thead>
+                    <tr>
+                        <th>Time (@ApplicationTime.TimeZoneId)</th>
+                        <th>Actor</th>
+                        <th>Operation</th>
+                        <th>Result</th>
+                        <th>Target</th>
+                        <th>IP</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in Model.Logs)
+                    {
+                        var targetType = string.IsNullOrWhiteSpace(log.TargetType) ? "System" : log.TargetType;
+                        var targetId = string.IsNullOrWhiteSpace(log.TargetId) ? "n/a" : log.TargetId;
+
+                        <tr>
+                            <td>
+                                <div class="cell-primary">@FormatStamp(log.TimestampUtc)</div>
+                            </td>
+                            <td>
+                                <div class="cell-primary">@log.ActorIdentifier</div>
+                                <div class="cell-meta">@log.ActorType</div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-badge--operation">@log.Operation</span>
+                            </td>
+                            <td>
+                                <span class="status-badge status-badge--@(log.Success ? "success" : "failure")">@(log.Success ? "Success" : "Failed")</span>
+                            </td>
+                            <td>
+                                <div class="cell-primary">@targetType</div>
+                                <div class="cell-meta">@TruncateTarget(targetId)</div>
+                                @if (targetId != "n/a")
+                                {
+                                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" data-copy-value="@targetId" data-copy-success="Target copied">Copy target</button>
+                                }
+                            </td>
+                            <td>
+                                <div class="cell-primary">@(string.IsNullOrWhiteSpace(log.IpAddress) ? "n/a" : log.IpAddress)</div>
+                            </td>
+                            <td class="cell-details">@log.Details</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="audit-list-mobile">
+            <div class="stack-list">
+                @foreach (var log in Model.Logs)
+                {
+                    var targetType = string.IsNullOrWhiteSpace(log.TargetType) ? "System" : log.TargetType;
+                    var targetId = string.IsNullOrWhiteSpace(log.TargetId) ? "n/a" : log.TargetId;
+
+                    <article class="surface-card stack-card">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <div class="cell-primary">@FormatStamp(log.TimestampUtc)</div>
+                                <div class="cell-meta">@log.ActorIdentifier</div>
+                            </div>
+                            <span class="status-badge status-badge--@(log.Success ? "success" : "failure")">@(log.Success ? "Success" : "Failed")</span>
+                        </div>
+                        <div class="stack-card__row">
+                            <span class="stack-card__label">Operation</span>
+                            <span class="stack-card__value">@log.Operation</span>
+                        </div>
+                        <div class="stack-card__row">
+                            <span class="stack-card__label">Target</span>
+                            <span class="stack-card__value">@targetType @TruncateTarget(targetId)</span>
+                        </div>
+                        <div class="stack-card__row">
+                            <span class="stack-card__label">IP</span>
+                            <span class="stack-card__value">@(string.IsNullOrWhiteSpace(log.IpAddress) ? "n/a" : log.IpAddress)</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(log.Details))
+                        {
+                            <div class="cell-meta mt-3">@log.Details</div>
+                        }
+                    </article>
+                }
+            </div>
+        </div>
+
+        <nav aria-label="Audit paging" class="mt-4">
+            <ul class="pagination mb-0">
+                <li class="page-item @(Model.HasPreviousPage ? string.Empty : "disabled")">
+                    <a class="page-link" href="@Url.Action("Audit", new { search = Model.Search, actor = Model.Actor, operation = Model.SelectedOperation, success = Model.SelectedSuccess, range = Model.SelectedRange, page = Model.Page - 1, pageSize = Model.PageSize })">Previous</a>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">Page @Model.Page of @Model.TotalPages</span>
+                </li>
+                <li class="page-item @(Model.HasNextPage ? string.Empty : "disabled")">
+                    <a class="page-link" href="@Url.Action("Audit", new { search = Model.Search, actor = Model.Actor, operation = Model.SelectedOperation, success = Model.SelectedSuccess, range = Model.SelectedRange, page = Model.Page + 1, pageSize = Model.PageSize })">Next</a>
+                </li>
+            </ul>
+        </nav>
+    }
+</section>

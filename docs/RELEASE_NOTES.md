@@ -2,11 +2,11 @@
 
 ## Unreleased
 
-Database storage modernization work in progress for `sharepassword`.
+Database storage modernization work in progress for `sekura`.
 
 ### Highlights
 
-- Added EF Core-backed persistence for password shares and audit logs.
+- Added EF Core-backed persistence for secure shares and audit logs.
 - Added selectable storage backends for SQLite, SQL Server, PostgreSQL, and Azure.
 - Added per-backend configuration sections with an Azure-specific Key Vault + Table Storage layout.
 - Added automatic EF Core migration application during app startup.
@@ -15,7 +15,7 @@ Database storage modernization work in progress for `sharepassword`.
 
 ## v0.5.1
 
-Logo, login, TOTP setup, and deployment refinement release of `sharepassword`.
+Logo, login, TOTP setup, and deployment refinement release of `sekura`.
 
 ### Highlights
 
@@ -32,7 +32,7 @@ Logo, login, TOTP setup, and deployment refinement release of `sharepassword`.
 
 ## v0.5.0
 
-Authenticator app and account security release of `sharepassword`.
+Authenticator app and account security release of `sekura`.
 
 ### Highlights
 
@@ -50,12 +50,12 @@ Authenticator app and account security release of `sharepassword`.
 
 ## v0.4.0
 
-Platform, database resilience, and project rename release of `sharepassword`.
+Platform, database resilience, and project rename release of `sekura`.
 
 ### Highlights
 
-- Renamed the main project from `sharepasswordAzure` to `sharepassword`.
-- Renamed the solution from `sharepasswordAzure.sln` to `sharepassword.sln`.
+- Renamed the main project from `sekuraAzure` to `sekura`.
+- Renamed the solution from `sekuraAzure.sln` to `sekura.sln`.
 - Added platform features for local users, system configuration, usage metrics, and mail configuration.
 - Added database resilience abstractions, connectivity health checks, and provider migrations for platform feature tables.
 - Added SMTP notification email service support.
@@ -70,7 +70,7 @@ Platform, database resilience, and project rename release of `sharepassword`.
 
 ## v0.3.2
 
-Audit filtering and export release of `sharepassword`.
+Audit filtering and export release of `sekura`.
 
 ### Highlights
 
@@ -86,7 +86,7 @@ Audit filtering and export release of `sharepassword`.
 
 ## v0.3.1
 
-Timezone and access-code format release of `sharepassword`.
+Timezone and access-code format release of `sekura`.
 
 ### Highlights
 
@@ -103,7 +103,7 @@ Timezone and access-code format release of `sharepassword`.
 
 ## v0.3.0
 
-Database storage, path base, and admin password hardening release of `sharepassword`.
+Database storage, path base, and admin password hardening release of `sekura`.
 
 ### Highlights
 
@@ -123,13 +123,13 @@ Database storage, path base, and admin password hardening release of `sharepassw
 
 ## v0.2.6
 
-Instructions field and input-hardening release of `sharepassword`.
+Instructions field and input-hardening release of `sekura`.
 
 ### Highlights
 
-- Added `Instructions` field to password share creation with multiline support and a `1000` character limit.
+- Added `Instructions` field to secure share creation with multiline support and a `1000` character limit.
 - Added `Instructions` retrieval/display alongside secret text while preserving formatting.
-- Added explicit operator guidance on the "Password Share Created" page:
+- Added explicit operator guidance on the "Secure Share Created" page:
 	- Send recipient, link, and expiration time via email.
 	- Send access code via SMS to recipient mobile phone.
 - Hardened user-input handling and validation for link token, access code, and key form fields.
@@ -141,7 +141,7 @@ Instructions field and input-hardening release of `sharepassword`.
 
 ## v0.2.5
 
-Security headers and session-cookie validation release of `sharepassword`.
+Security headers and session-cookie validation release of `sekura`.
 
 ### Highlights
 
@@ -159,7 +159,7 @@ Security headers and session-cookie validation release of `sharepassword`.
 
 ## v0.2.4
 
-Security and deployment hardening release of `sharepassword`.
+Security and deployment hardening release of `sekura`.
 
 ### Highlights
 
@@ -175,7 +175,7 @@ Security and deployment hardening release of `sharepassword`.
 
 ## v0.2.3
 
-Secret text handling and usability release of `sharepassword`.
+Secret text handling and usability release of `sekura`.
 
 ### Highlights
 
@@ -192,7 +192,7 @@ Secret text handling and usability release of `sharepassword`.
 
 ## v0.2.2
 
-UX and branding refresh release of `sharepassword`.
+UX and branding refresh release of `sekura`.
 
 ### Highlights
 
@@ -209,7 +209,7 @@ UX and branding refresh release of `sharepassword`.
 
 ## v0.2.1
 
-Security maintenance release of `sharepassword`.
+Security maintenance release of `sekura`.
 
 ### Highlights
 
@@ -224,7 +224,7 @@ Security maintenance release of `sharepassword`.
 
 ## v0.2.0
 
-Feature and security release of `sharepassword`.
+Feature and security release of `sekura`.
 
 ### Highlights
 
@@ -244,7 +244,7 @@ Feature and security release of `sharepassword`.
 
 ## v0.1.4-alpha.1
 
-Alpha feature release of `sharepassword`.
+Alpha feature release of `sekura`.
 
 ### Highlights
 
@@ -262,12 +262,12 @@ Alpha feature release of `sharepassword`.
 
 ## v0.1.3
 
-Security maintenance release of `sharepassword`.
+Security maintenance release of `sekura`.
 
 ### Highlights
 
 - Patched vendored jQuery validation plugin to address code scanning alert #5 (`Unsafe jQuery plugin`).
-- Updated `sharepassword/wwwroot/lib/jquery-validation/dist/jquery.validate.js` with the remediation change.
+- Updated `sekura/wwwroot/lib/jquery-validation/dist/jquery.validate.js` with the remediation change.
 
 ### Notes
 
@@ -276,7 +276,7 @@ Security maintenance release of `sharepassword`.
 
 ## v0.1.2
 
-Feature release of `sharepassword`.
+Feature release of `sekura`.
 
 ### Highlights
 
@@ -293,7 +293,7 @@ Feature release of `sharepassword`.
 
 ## v0.1.1
 
-Maintenance release of `sharepassword`.
+Maintenance release of `sekura`.
 
 ### Highlights
 
@@ -308,7 +308,7 @@ Maintenance release of `sharepassword`.
 
 ## v0.1.0
 
-Initial public release of `sharepassword`.
+Initial public release of `sekura`.
 
 ### Highlights
 

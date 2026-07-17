@@ -319,7 +319,7 @@ if ([string]::IsNullOrWhiteSpace($principalObjectId) -and -not $SkipAppRegistrat
         "ad","app","credential","reset",
         "--id",$appClientId,
         "--append",
-        "--display-name","sharepassword",
+        "--display-name","sekura",
         "--years","2",
         "--query","password",
         "--output","tsv"
@@ -347,7 +347,7 @@ if (-not $SkipOidcAppRegistration) {
         "ad","app","credential","reset",
         "--id",$oidcAppClientId,
         "--append",
-        "--display-name","sharepassword-oidc",
+        "--display-name","sekura-oidc",
         "--years","2",
         "--query","password",
         "--output","tsv"
@@ -406,7 +406,7 @@ $result = [PSCustomObject]@{
         AzureStorage__KeyVault__TenantId = $tenantId
         AzureStorage__KeyVault__ClientId = $appClientId
         AzureStorage__KeyVault__ClientSecret = $(if ($NoSecretOutput) { "" } else { $appClientSecret })
-        AzureStorage__KeyVault__SecretPrefix = "sharepassword"
+        AzureStorage__KeyVault__SecretPrefix = "sekura"
         AzureStorage__TableAudit__ServiceSasUrl = $(if ($NoSecretOutput) { "" } else { $serviceSasUrl })
         AzureStorage__TableAudit__TableName = $AuditTableName
         AzureStorage__TableAudit__PartitionKey = "audit"
@@ -427,7 +427,7 @@ Write-Host "  AzureStorage__KeyVault__VaultUri=$keyVaultUri"
 Write-Host "  AzureStorage__KeyVault__TenantId=$tenantId"
 Write-Host "  AzureStorage__KeyVault__ClientId=$appClientId"
 Write-Host "  AzureStorage__KeyVault__ClientSecret=$(if ($NoSecretOutput) { '<hidden>' } else { $appClientSecret })"
-Write-Host "  AzureStorage__KeyVault__SecretPrefix=sharepassword"
+Write-Host "  AzureStorage__KeyVault__SecretPrefix=sekura"
 Write-Host "  AzureStorage__TableAudit__ServiceSasUrl=$(if ($NoSecretOutput) { '<hidden>' } else { $serviceSasUrl })"
 Write-Host "  AzureStorage__TableAudit__TableName=$AuditTableName"
 Write-Host "  AzureStorage__TableAudit__PartitionKey=audit"

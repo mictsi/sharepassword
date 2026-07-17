@@ -4,7 +4,7 @@ set -euo pipefail
 # Generate a docker-ready .env file from the appsettings templates.
 #
 # Usage:
-#   ./scripts/generate-env-file.sh prod [-o <output>]   From sharepassword/appsettings.json.in (default output: .env.prod)
+#   ./scripts/generate-env-file.sh prod [-o <output>]   From sekura/appsettings.json.in (default output: .env.prod)
 #   ./scripts/generate-env-file.sh dev  [-o <output>]   Base template merged with appsettings.Development.json.in (default output: .env.dev)
 #
 # Keys are flattened to ASP.NET Core environment format (Section__Key=value,
@@ -19,8 +19,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-BASE_TEMPLATE="$REPO_ROOT/sharepassword/appsettings.json.in"
-DEV_TEMPLATE="$REPO_ROOT/sharepassword/appsettings.Development.json.in"
+BASE_TEMPLATE="$REPO_ROOT/sekura/appsettings.json.in"
+DEV_TEMPLATE="$REPO_ROOT/sekura/appsettings.Development.json.in"
 
 usage() {
 	sed -n '4,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -40,13 +40,13 @@ case "$MODE" in
 		ENVIRONMENT="Production"
 		OUTPUT="$REPO_ROOT/.env.prod"
 		MERGED_JSON=$(jq '.' "$BASE_TEMPLATE")
-		SOURCES="sharepassword/appsettings.json.in"
+		SOURCES="sekura/appsettings.json.in"
 		;;
 	dev)
 		ENVIRONMENT="Development"
 		OUTPUT="$REPO_ROOT/.env.dev"
 		MERGED_JSON=$(jq -s '.[0] * .[1]' "$BASE_TEMPLATE" "$DEV_TEMPLATE")
-		SOURCES="sharepassword/appsettings.json.in + sharepassword/appsettings.Development.json.in"
+		SOURCES="sekura/appsettings.json.in + sekura/appsettings.Development.json.in"
 		;;
 	*)
 		usage
@@ -103,7 +103,7 @@ fi
 
 if grep -q '^AdminAuth__PasswordHash=$' "$OUTPUT"; then
 	echo "NEXT: set AdminAuth__PasswordHash. Generate with:"
-	echo "  dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'"
+	echo "  dotnet run --project ./sekura -- hash-admin-password --password '<password>'"
 fi
 
 if grep -q 'ChangeThis' "$OUTPUT"; then

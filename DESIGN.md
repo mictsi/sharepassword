@@ -1,10 +1,10 @@
-# SharePassword Design
+# Sekura Design
 
-This document describes the current design of the SharePassword application. It focuses on the runtime architecture, data boundaries, core request flows, and the security decisions that shape the implementation.
+This document describes the current design of the Sekura application. It focuses on the runtime architecture, data boundaries, core request flows, and the security decisions that shape the implementation.
 
 ## Purpose
 
-SharePassword is an ASP.NET Core MVC application for sharing temporary secrets without putting the secret directly in email, chat, or tickets. A signed-in sender creates a share for a recipient. The recipient opens a unique link and proves access with their email address plus a separate one-time access code. Shares expire automatically and can also be revoked or deleted after retrieval. The application also supports information requests, where a signed-in app user asks an external user to submit or update temporary information through a secure request link.
+Sekura is an ASP.NET Core MVC application for sharing temporary secrets without putting the secret directly in email, chat, or tickets. A signed-in sender creates a share for a recipient. The recipient opens a unique link and proves access with their email address plus a separate one-time access code. Shares expire automatically and can also be revoked or deleted after retrieval. The application also supports information requests, where a signed-in app user asks an external user to submit or update temporary information through a secure request link.
 
 For higher-sensitivity shares, the sender can enable browser-side encryption with an extra password. In that mode, the browser encrypts the secret before form submission, the server stores only the encrypted client payload, and the recipient must know the extra password to decrypt the secret in their browser.
 
@@ -20,15 +20,15 @@ For higher-sensitivity shares, the sender can enable browser-side encryption wit
 
 ## Repository Layout
 
-- `sharepassword/` contains the web application.
-- `sharepassword/Controllers/` contains MVC request handlers.
-- `sharepassword/Views/` contains Razor UI.
-- `sharepassword/Services/` contains storage, crypto, audit, notification, authentication support, metrics, and background services.
-- `sharepassword/Data/` contains EF Core context setup, migrations, and storage registration.
-- `sharepassword/Models/` contains persisted domain models.
-- `sharepassword/ViewModels/` contains form and page models.
-- `sharepassword/wwwroot/` contains static assets and client-side encryption logic.
-- `sharepassword.Tests/` contains unit and integration tests.
+- `sekura/` contains the web application.
+- `sekura/Controllers/` contains MVC request handlers.
+- `sekura/Views/` contains Razor UI.
+- `sekura/Services/` contains storage, crypto, audit, notification, authentication support, metrics, and background services.
+- `sekura/Data/` contains EF Core context setup, migrations, and storage registration.
+- `sekura/Models/` contains persisted domain models.
+- `sekura/ViewModels/` contains form and page models.
+- `sekura/wwwroot/` contains static assets and client-side encryption logic.
+- `sekura.Tests/` contains unit and integration tests.
 - `scripts/` contains local helper, Azure provisioning, deployment, and Docker asset generation scripts.
 - `docs/` contains user-facing overview, flow, changelog, and release notes.
 
@@ -36,11 +36,11 @@ For higher-sensitivity shares, the sender can enable browser-side encryption wit
 
 `Program.cs` is the composition root. It validates critical options, registers storage based on configuration, configures authentication and authorization policies, runs storage startup checks or migrations, initializes platform data, and wires the MVC routes.
 
-The authenticated start page is `/Dashboard`, which links to the two operational consoles: `Admin console - Password shares` and `Admin console - Information requests`. `/InformationRequests` is the admin console for request-information workflows, not a user workspace.
+The authenticated start page is `/Dashboard`, which links to the two operational consoles: `Admin console - Secure shares` and `Admin console - Information requests`. `/InformationRequests` is the admin console for request-information workflows, not a user workspace.
 
 The main service boundaries are:
 
-- `IShareStore`: creates, loads, updates, and deletes password shares.
+- `IShareStore`: creates, loads, updates, and deletes secure shares.
 - `IInformationRequestStore`: creates, loads, updates, and deletes information requests and submitted user responses.
 - `IAuditLogSink` and `IAuditLogReader`: persist and read audit events.
 - `IPasswordCryptoService`: encrypts and decrypts server-managed secrets at rest.
@@ -64,7 +64,7 @@ The app supports four configured storage backends through `Storage:Backend`:
 
 The database-backed modes use EF Core and share the same logical schema:
 
-- `PasswordShares`
+- `SecureShares`
 - `AuditLogs`
 - `LocalUsers`
 - `SystemConfigurations`
@@ -72,7 +72,7 @@ The database-backed modes use EF Core and share the same logical schema:
 - `UsageMetricEvents`
 - `InformationRequests`
 
-Each database provider has its own migration set under `sharepassword/Data/Migrations/`. Startup either applies migrations or performs a connectivity check depending on the provider-specific `ApplyMigrationsOnStartup` setting. SQLite migration startup is treated carefully because EF Core uses a `__EFMigrationsLock` table for concurrency protection; interrupted SQLite migrations can leave a lock that must be cleared before another migration attempt.
+Each database provider has its own migration set under `sekura/Data/Migrations/`. Startup either applies migrations or performs a connectivity check depending on the provider-specific `ApplyMigrationsOnStartup` setting. SQLite migration startup is treated carefully because EF Core uses a `__EFMigrationsLock` table for concurrency protection; interrupted SQLite migrations can leave a lock that must be cleared before another migration attempt.
 
 The Azure mode stores shares as JSON secrets in Azure Key Vault and audit logs in Azure Table Storage. Database-backed platform features such as local user management, editable mail configuration, runtime timezone settings, and persisted KPI counters are not available in Azure mode unless separate implementations are added.
 
@@ -80,7 +80,7 @@ Database-backed operations flow through `IDatabaseOperationRunner`, which centra
 
 ## Data Model
 
-`PasswordShare` is the central business entity for one-time secret delivery. It contains:
+`SecureShare` is the central business entity for one-time secret delivery. It contains:
 
 - recipient email
 - shared username or account name
@@ -117,7 +117,7 @@ All persisted `DateTime` values in EF Core are normalized to UTC through model c
 
 ### Create Share
 
-1. A local or OIDC-authenticated user opens `Admin console - Password shares`.
+1. A local or OIDC-authenticated user opens `Admin console - Secure shares`.
 2. The sender creates a share with recipient email, shared username, secret, instructions, expiry, and optional OIDC/client-encryption controls.
 3. The app generates a share token and access code.
 4. For server-managed shares, `PasswordCryptoService` encrypts the secret before persistence.
@@ -206,14 +206,14 @@ The middleware pipeline adds these security headers to every response:
 
 HTTPS redirection is controlled by `Application:EnableHttpsRedirection`, allowing deployments behind a TLS-terminating reverse proxy to choose the appropriate setting.
 
-For production hardening and deployment details, see `sharepassword/CONFIGURATION.md`.
+For production hardening and deployment details, see `sekura/CONFIGURATION.md`.
 
 ## Extension Points
 
 Common changes should fit these existing boundaries:
 
 - Add a storage provider by implementing `IShareStore`, `IInformationRequestStore`, audit sink/reader support, and registration in `DatabaseRegistrationExtensions`.
-- Add new persisted database-backed behavior through `SharePasswordDbContext`, provider-specific migrations, and focused service interfaces.
+- Add new persisted database-backed behavior through `SekuraDbContext`, provider-specific migrations, and focused service interfaces.
 - Add new audit-producing behavior by calling `IAuditLogger` with a stable operation name.
 - Add new user-facing workflows through MVC controllers, view models, and Razor views while keeping secrets out of logs and model errors.
 - Add new runtime settings through options classes for static configuration, or through `SystemConfiguration` when the setting must be editable at runtime.

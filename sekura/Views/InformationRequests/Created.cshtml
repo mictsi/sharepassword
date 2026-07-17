@@ -1,0 +1,72 @@
+@model Sekura.ViewModels.AdminInformationRequestCreatedViewModel
+@{
+    ViewData["Title"] = "Information Request Created";
+    var expiresLocal = ApplicationTime.ConvertUtcToApplicationTime(Model.ExpiresAtUtc);
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Information request</div>
+        <h1 class="page-title">Request created</h1>
+        <p class="page-subtitle">Store the access code now, then deliver the link and code through separate channels.</p>
+    </div>
+</div>
+
+<section class="surface-card surface-card--warning">
+    <h2 class="surface-card__title">This access code is shown only once</h2>
+    <p class="surface-card__subtitle">Copy it now before leaving this page.</p>
+</section>
+
+<div class="created-share-grid">
+    <section class="surface-card">
+        <div class="copy-field">
+            <span class="copy-field__label">User</span>
+            <div class="cell-primary">@Model.PartnerEmail</div>
+        </div>
+
+        <div class="copy-field mt-4">
+            <span class="copy-field__label">Request link</span>
+            <div class="copy-field__row">
+                <input id="createdRequestLink" class="form-control" value="@Model.RequestLink" readonly />
+                <button type="button" class="btn btn-outline-secondary" data-copy-target="createdRequestLink" data-copy-success="Link copied">Copy link</button>
+            </div>
+        </div>
+
+        <div class="copy-field mt-4">
+            <span class="copy-field__label">Access code</span>
+            <div class="copy-field__row">
+                <input id="createdRequestAccessCode" class="form-control copy-field__input--code" value="@Model.AccessCode" readonly />
+                <button type="button" class="btn btn-primary" data-copy-target="createdRequestAccessCode" data-copy-success="Code copied">Copy code</button>
+            </div>
+        </div>
+    </section>
+
+    <aside class="created-share-sidebar">
+        <section class="surface-card">
+            <span class="copy-field__label">Expiration</span>
+            <div class="cell-primary">@($"{expiresLocal:MMM dd, yyyy HH:mm} {ApplicationTime.TimeZoneId}")</div>
+        </section>
+
+        <section class="surface-card">
+            <span class="copy-field__label">Access protection</span>
+            @if (Model.RequireOidcLogin)
+            {
+                <span class="status-badge status-badge--entra mt-2">Microsoft Entra ID + access code</span>
+            }
+            else
+            {
+                <span class="status-badge status-badge--standard mt-2">Email + access code</span>
+            }
+        </section>
+    </aside>
+</div>
+
+<section class="surface-card surface-card--info">
+    <h2 class="surface-card__title">Recommended delivery</h2>
+    <p class="surface-card__subtitle">Send the request link and access code through separate channels. The user can update their response until the expiration time.</p>
+</section>
+
+<div class="action-row">
+    <a class="btn btn-primary" asp-action="Details" asp-route-id="@Model.RequestId">View request</a>
+    <a class="btn btn-outline-secondary" asp-action="Index">Back to requests</a>
+</div>

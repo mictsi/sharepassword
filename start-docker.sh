@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build and run SharePassword with Docker Compose (docker-compose.yml).
+# Build and run Sekura with Docker Compose (docker-compose.yml).
 #
 # Usage:
 #   ./start-docker.sh start        Build the image and start the container
@@ -10,21 +10,21 @@ set -euo pipefail
 #   ./start-docker.sh clean --all  Also remove the data volume (deletes the SQLite database)
 #
 # Required environment for 'start' (can also be placed in .env.docker next to this script):
-#   AdminAuth__PasswordHash    Generate with: dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'
+#   AdminAuth__PasswordHash    Generate with: dotnet run --project ./sekura -- hash-admin-password --password '<password>'
 #   Encryption__Passphrase     At least 15 characters (32+ recommended)
 #
 # .env.docker lines are KEY=VALUE and read literally, so '$' in password
 # hashes needs no quoting or escaping.
 #
 # Optional environment:
-#   SHAREPASSWORD_PORT         Host port to publish (default 8080)
+#   SEKURA_PORT         Host port to publish (default 8080)
 
-CONTAINER_NAME="sharepassword"
-VOLUME_NAME="sharepassword-data"
+CONTAINER_NAME="sekura"
+VOLUME_NAME="sekura-data"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env.docker"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
-export SHAREPASSWORD_PORT="${SHAREPASSWORD_PORT:-8080}"
+export SEKURA_PORT="${SEKURA_PORT:-8080}"
 
 compose() {
 	docker compose -f "$COMPOSE_FILE" "$@"
@@ -83,7 +83,7 @@ start() {
 	if [[ -z "${AdminAuth__PasswordHash:-}" ]]; then
 		echo "ERROR: AdminAuth__PasswordHash is not set." >&2
 		echo "Generate one with:" >&2
-		echo "  dotnet run --project ./sharepassword -- hash-admin-password --password '<password>'" >&2
+		echo "  dotnet run --project ./sekura -- hash-admin-password --password '<password>'" >&2
 		echo "Then export it or add it to $ENV_FILE" >&2
 		exit 1
 	fi
@@ -97,9 +97,9 @@ start() {
 	echo "Building and starting via Docker Compose..."
 	compose up -d --build
 
-	echo "SharePassword is starting: http://localhost:$SHAREPASSWORD_PORT"
+	echo "Sekura is starting: http://localhost:$SEKURA_PORT"
 	echo "Logs:   docker compose -f $COMPOSE_FILE logs -f"
-	echo "Health: curl http://localhost:$SHAREPASSWORD_PORT/health"
+	echo "Health: curl http://localhost:$SEKURA_PORT/health"
 }
 
 stop() {

@@ -1,17 +1,17 @@
-# SharePassword Feature Inventory
+# Sekura Feature Inventory
 
-This document is a complete inventory of what the application does today. It is grouped by area. For configuration details see [`../sharepassword/CONFIGURATION.md`](../sharepassword/CONFIGURATION.md) and [`../sharepassword/README.md`](../sharepassword/README.md); for architecture see [`../DESIGN.md`](../DESIGN.md).
+This document is a complete inventory of what the application does today. It is grouped by area. For configuration details see [`../sekura/CONFIGURATION.md`](../sekura/CONFIGURATION.md) and [`../sekura/README.md`](../sekura/README.md); for architecture see [`../DESIGN.md`](../DESIGN.md).
 
 The app ships two secure external-facing workflows behind one authenticated admin console:
 
-1. **Password shares** — hand a secret to a recipient for a limited time.
+1. **Secure shares** — hand a secret to a recipient for a limited time.
 2. **Information requests** — collect information back from an external partner for a limited time.
 
-After sign-in, `/Dashboard` opens a two-card start page that links to the **Admin console - Password shares** and **Admin console - Information requests**.
+After sign-in, `/Dashboard` opens a two-card start page that links to the **Admin console - Secure shares** and **Admin console - Information requests**.
 
 ---
 
-## 1. Password shares
+## 1. Secure shares
 
 Route prefix: `/Admin`, recipient link `/s/{token}`.
 
@@ -46,7 +46,7 @@ Route prefix: `/InformationRequests` (admin) and `/InformationRequest` (partner)
 
 ## 3. Admin console and dashboard
 
-- `/Dashboard` two-card start page routes to the Password shares and Information requests consoles.
+- `/Dashboard` two-card start page routes to the Secure shares and Information requests consoles.
 - Persistent top navigation exposes both consoles, create actions, profile, and (for admins) Users, Mail configuration, Settings, and Audit logs.
 - Default route lands on the dashboard after sign-in.
 
@@ -124,7 +124,7 @@ Supporting behavior:
 | Path | Audience | Purpose |
 | --- | --- | --- |
 | `/Dashboard` | Admin/User | Console chooser start page |
-| `/Admin` | Admin/User | Password shares console (list, create, revoke) |
+| `/Admin` | Admin/User | Secure shares console (list, create, revoke) |
 | `/Admin/Audit` | Admin/Auditor | Audit log (filter, search, JSON export) |
 | `/InformationRequests` | Admin/User | Information requests console (list, create, details, extend, revoke) |
 | `/Users` | Admin | Local user management + second-factor reset |
@@ -132,7 +132,7 @@ Supporting behavior:
 | `/Configuration/Settings` | Admin | Timezone + failed-attempt pause |
 | `/account/login` | Local admin/user | Sign-in (with TOTP/passkey second factor) |
 | `/account/profile` | Authenticated | Self-service passkey/authenticator management |
-| `/s/{token}` | Recipient (external) | Open a password share |
+| `/s/{token}` | Recipient (external) | Open a secure share |
 | `/r/{token}` | Partner (external) | Submit/update an information request |
 | `/health` | Ops | Liveness + database connectivity probe |
 </content>

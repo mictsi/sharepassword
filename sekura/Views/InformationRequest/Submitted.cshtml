@@ -1,0 +1,25 @@
+@model Sekura.ViewModels.InformationRequestSubmittedViewModel
+@{
+    ViewData["Title"] = Model.IsUpdate ? "Submitted Request Updated" : "Information Submitted";
+}
+
+<section class="public-card public-card--wide information-request-response information-request-submitted" aria-labelledby="submittedHeading">
+    <div class="page-eyebrow">User view</div>
+    <h1 class="page-title" id="submittedHeading">@(Model.IsUpdate ? "Submitted request updated" : "Information submitted")</h1>
+
+    <div class="surface-card form-section information-request-panel" role="status">
+        <div class="form-section__header">
+            <h2 class="form-section__title">Contact the requester</h2>
+            <p class="form-section__text">
+                @(Model.IsUpdate
+                    ? "Your submitted information has been updated. Contact the requester and let them know the request has been updated."
+                    : "Your information has been submitted. Contact the requester and let them know the request has been completed.")
+            </p>
+        </div>
+
+        @if (Model.IsProtectedResponse)
+        {
+            <p class="information-request-submitted__note">Share the extra password with the requester through a separate channel so they can decrypt the submitted information.</p>
+        }
+    </div>
+</section>
