@@ -14,7 +14,7 @@ param(
 	[Parameter(Mandatory = $true)]
 	[string]$WebAppName,
 
-	[string]$SettingsFile = "./sekura/appsettings.json",
+	[string]$EnvFile = "./.env.prod",
 	[string]$ProjectPath = "./sekura/sekura.csproj",
 	[string]$Configuration = "Release",
 	[string]$OutputDirectory = "./artifacts/deploy/appservice",
@@ -59,79 +59,39 @@ function Invoke-CommandStrict {
 	}
 }
 
-function ConvertTo-AppSettingValue {
+# Env file lines are KEY=VALUE and read literally (no expansion), so '$' in
+# password hashes needs no quoting or escaping. Optional surrounding single
+# or double quotes are stripped.
+function ConvertFrom-DotEnvFile {
 	param(
-		[AllowNull()]
-		[object]$Value
-	)
-
-	if ($null -eq $Value) {
-		return ""
-	}
-
-	if ($Value -is [bool]) {
-		if ($Value) {
-			return "true"
-		}
-
-		return "false"
-	}
-
-	if ($Value -is [string]) {
-		return $Value
-	}
-
-	if ($Value -is [ValueType]) {
-		return [Convert]::ToString($Value, [Globalization.CultureInfo]::InvariantCulture)
-	}
-
-	return ($Value | ConvertTo-Json -Compress -Depth 64)
-}
-
-function Add-FlattenedJsonSettings {
-	param(
-		[AllowNull()]
-		[object]$Source,
-
-		[string]$Prefix = "",
-
 		[Parameter(Mandatory = $true)]
-		[System.Collections.Specialized.OrderedDictionary]$Settings
+		[string]$Path
 	)
 
-	if ($null -eq $Source) {
-		if (-not [string]::IsNullOrWhiteSpace($Prefix)) {
-			$Settings[$Prefix] = ""
+	$settings = [ordered]@{}
+	foreach ($line in Get-Content -Path $Path) {
+		$trimmed = $line.Trim()
+		if ($trimmed -eq "" -or $trimmed.StartsWith("#")) {
+			continue
 		}
 
-		return
-	}
-
-	if ($Source -is [pscustomobject]) {
-		foreach ($property in $Source.PSObject.Properties) {
-			$key = if ([string]::IsNullOrWhiteSpace($Prefix)) { $property.Name } else { "${Prefix}__$($property.Name)" }
-			Add-FlattenedJsonSettings -Source $property.Value -Prefix $key -Settings $Settings
+		$separatorIndex = $trimmed.IndexOf("=")
+		if ($separatorIndex -lt 1) {
+			Write-Warning "Ignoring malformed line in '$Path' (expected KEY=VALUE): $trimmed"
+			continue
 		}
 
-		return
-	}
-
-	if (($Source -is [System.Collections.IEnumerable]) -and -not ($Source -is [string])) {
-		$index = 0
-		foreach ($item in $Source) {
-			$key = "${Prefix}__$index"
-			Add-FlattenedJsonSettings -Source $item -Prefix $key -Settings $Settings
-			$index++
+		$key = $trimmed.Substring(0, $separatorIndex).Trim()
+		$value = $trimmed.Substring($separatorIndex + 1)
+		if (($value.StartsWith('"') -and $value.EndsWith('"') -and $value.Length -ge 2) -or
+			($value.StartsWith("'") -and $value.EndsWith("'") -and $value.Length -ge 2)) {
+			$value = $value.Substring(1, $value.Length - 2)
 		}
 
-		return
+		$settings[$key] = $value
 	}
 
-	if ([string]::IsNullOrWhiteSpace($Prefix)) {
-		throw "The settings file root must be a JSON object."
-	}
-
-	$Settings[$Prefix] = ConvertTo-AppSettingValue -Value $Source
+	return $settings
 }
 
 function Get-ProjectAssemblyName {
@@ -201,19 +161,17 @@ if ($AppServicePort -le 0) {
 	throw "AppServicePort must be greater than 0."
 }
 
-if ([string]::IsNullOrWhiteSpace($SettingsFile)) {
-	throw "SettingsFile is required."
+if ([string]::IsNullOrWhiteSpace($EnvFile)) {
+	throw "EnvFile is required."
 }
 
-if (-not (Test-Path $SettingsFile)) {
-	throw "Settings file '$SettingsFile' was not found."
+if (-not (Test-Path $EnvFile)) {
+	throw "Env file '$EnvFile' was not found. Create it from the template first: Copy-Item .env.template $EnvFile"
 }
 
-$settingsPath = (Resolve-Path $SettingsFile).Path
-Write-Host "Loading and flattening settings from '$settingsPath'..." -ForegroundColor Cyan
-$settingsJson = Get-Content -Path $settingsPath -Raw | ConvertFrom-Json
-$settingsObject = [ordered]@{}
-Add-FlattenedJsonSettings -Source $settingsJson -Settings $settingsObject
+$settingsPath = (Resolve-Path $EnvFile).Path
+Write-Host "Loading settings from '$settingsPath'..." -ForegroundColor Cyan
+$settingsObject = ConvertFrom-DotEnvFile -Path $settingsPath
 
 try {
 	Invoke-Az -Args @("account", "show", "--output", "none") | Out-Null
@@ -303,14 +261,16 @@ $managedSettingExactNames = @(
 )
 $managedSettingPrefixes = @("Kestrel__Endpoints__")
 
-foreach ($property in $settingsJson.PSObject.Properties) {
-	if (($property.Value -is [pscustomobject]) -or (($property.Value -is [System.Collections.IEnumerable]) -and -not ($property.Value -is [string]))) {
-		$managedSettingPrefixes += "$($property.Name)__"
+foreach ($key in @($settingsObject.Keys)) {
+	$separatorIndex = ([string]$key).IndexOf("__")
+	if ($separatorIndex -gt 0) {
+		$managedSettingPrefixes += ([string]$key).Substring(0, $separatorIndex) + "__"
 	}
 	else {
-		$managedSettingExactNames += $property.Name
+		$managedSettingExactNames += [string]$key
 	}
 }
+$managedSettingPrefixes = @($managedSettingPrefixes | Select-Object -Unique)
 
 foreach ($key in @($settingsObject.Keys)) {
 	if ([string]$key -like "Kestrel__Endpoints__*") {

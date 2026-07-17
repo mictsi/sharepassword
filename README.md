@@ -44,25 +44,31 @@ A full inventory is in [docs/FEATURES.md](docs/FEATURES.md). In brief:
 
 ## Quick start
 
+All configuration lives in `.env` files (ASP.NET `Section__Key=value` format). Copy the template, fill in the secrets, and start:
+
 ```bash
-dotnet restore ./sekura.sln
-dotnet run --project ./sekura/sekura.csproj
+cp .env.template .env.dev
+
+# Generate the admin password hash and put it in AdminAuth__PasswordHash
+dotnet run --project ./sekura -- hash-admin-password --password '<password>'
+
+./start-linux.sh               # loads .env.dev, builds, and runs
+./start-linux.sh .env.prod     # same but with production settings
 ```
+
+On Windows use `./start-win.ps1` (`-EnvFile .env.prod` to override the default `.env.dev`).
 
 ## Run with Docker
 
 `start-docker.sh` builds the image and manages the container through Docker Compose (`docker-compose.yml`). The container runs as a non-root user and stores the SQLite database in a named volume (`sekura-data`).
 
-Generate a full configuration file from the appsettings templates, fill in the secrets, and start:
+Copy the template, fill in the secrets, and start:
 
 ```bash
-./scripts/generate-env-file.sh prod   # writes .env.prod from appsettings.json.in
-./scripts/generate-env-file.sh dev    # writes .env.dev (base + Development overlay)
+cp .env.template .env.prod     # compose reads .env.prod via env_file
 
-# Generate the admin password hash and put it in the file
+# Generate the admin password hash and put it in AdminAuth__PasswordHash
 dotnet run --project ./sekura -- hash-admin-password --password '<password>'
-
-cp .env.prod .env.docker       # start-docker.sh and compose read .env.docker
 
 ./start-docker.sh start        # build image + run container on port 8080
 ./start-docker.sh stop         # stop the container
@@ -70,7 +76,7 @@ cp .env.prod .env.docker       # start-docker.sh and compose read .env.docker
 ./start-docker.sh clean --all  # also remove the data volume (deletes the database)
 ```
 
-The generator flattens the JSON templates to ASP.NET environment format (`Section__Key=value`), sets `ASPNETCORE_ENVIRONMENT`, omits `Kestrel__*` (the image binds port 8080 itself), and points the SQLite path at the data volume. It lists any placeholders that still need real values. Alternatively, export just `AdminAuth__PasswordHash` and `Encryption__Passphrase` in the shell and skip the file — the container then runs on image defaults.
+For containers, set `SqliteStorage__ConnectionString=Data Source=/app/data/sekura.db` (the named volume) and leave `ASPNETCORE_URLS` commented — the image binds port 8080 itself. Alternatively, export just `AdminAuth__PasswordHash` and `Encryption__Passphrase` in the shell and skip the file — the container then runs on image defaults. A legacy `.env.docker` file is still read and overrides `.env.prod`.
 
 Set `SEKURA_PORT` to publish a different host port. When running behind a reverse proxy, configure the `ForwardedHeaders` section so audit logs record real client IPs (see [sekura/CONFIGURATION.md](sekura/CONFIGURATION.md)).
 
@@ -148,10 +154,10 @@ A helper script is available at `scripts/deploy-appservice.ps1` to:
 
 - Create/update resource group
 - Create/update Linux App Service plan and Web App
-- Flatten `appsettings.json` into App Service application settings
+- Push the `.env.prod` settings as App Service application settings
 - Publish and deploy the app package
 
-By default, the script reads `sekura/appsettings.json`, flattens every JSON setting into ASP.NET Core environment variable keys, and pushes those values to App Service. The script also sets App Service-specific runtime values such as the environment, port binding, and startup command.
+By default, the script reads `.env.prod` (override with `-EnvFile`) and pushes every `Section__Key=value` entry to App Service. The script also sets App Service-specific runtime values such as the environment, port binding, and startup command.
 
 Example:
 

@@ -9,12 +9,14 @@ set -euo pipefail
 #   ./start-docker.sh clean        Stop and remove container + image (data volume kept)
 #   ./start-docker.sh clean --all  Also remove the data volume (deletes the SQLite database)
 #
-# Required environment for 'start' (can also be placed in .env.docker next to this script):
+# Required environment for 'start' (can also be placed in .env.prod next to
+# this script; copy it from .env.template):
 #   AdminAuth__PasswordHash    Generate with: dotnet run --project ./sekura -- hash-admin-password --password '<password>'
 #   Encryption__Passphrase     At least 15 characters (32+ recommended)
 #
-# .env.docker lines are KEY=VALUE and read literally, so '$' in password
-# hashes needs no quoting or escaping.
+# Env file lines are KEY=VALUE and read literally, so '$' in password
+# hashes needs no quoting or escaping. .env.docker is a legacy override
+# kept for compatibility; its values win over .env.prod.
 #
 # Optional environment:
 #   SEKURA_PORT         Host port to publish (default 8080)
@@ -22,7 +24,7 @@ set -euo pipefail
 CONTAINER_NAME="sekura"
 VOLUME_NAME="sekura-data"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="$SCRIPT_DIR/.env.docker"
+ENV_FILES=("$SCRIPT_DIR/.env.prod" "$SCRIPT_DIR/.env.docker")
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 export SEKURA_PORT="${SEKURA_PORT:-8080}"
 
@@ -50,47 +52,49 @@ require_docker() {
 # Values are read literally (no shell expansion), because admin password
 # hashes contain '$' (e.g. ARGON2ID$v=19$m=...). Lines are KEY=VALUE;
 # optional surrounding single or double quotes are stripped.
-load_env_file() {
-	if [[ ! -f "$ENV_FILE" ]]; then
-		return
-	fi
-
-	echo "Loading environment from $ENV_FILE"
-	local line key value
-	while IFS= read -r line || [[ -n "$line" ]]; do
-		[[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
-		if [[ "$line" != *"="* ]]; then
-			echo "WARNING: ignoring malformed line in $ENV_FILE (expected KEY=VALUE)" >&2
+load_env_files() {
+	local env_file line key value
+	for env_file in "${ENV_FILES[@]}"; do
+		if [[ ! -f "$env_file" ]]; then
 			continue
 		fi
-		key="${line%%=*}"
-		value="${line#*=}"
-		key="${key#"${key%%[![:space:]]*}"}"
-		key="${key%"${key##*[![:space:]]}"}"
-		# Keys with dots (e.g. Logging__LogLevel__Microsoft.AspNetCore) cannot be
-		# exported by bash; compose reads them from the env_file directly.
-		[[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
-		if [[ ( "$value" == \"*\" && "$value" == *\" ) || ( "$value" == \'*\' && "$value" == *\' ) ]]; then
-			value="${value:1:-1}"
-		fi
-		export "$key=$value"
-	done < "$ENV_FILE"
+
+		echo "Loading environment from $env_file"
+		while IFS= read -r line || [[ -n "$line" ]]; do
+			[[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+			if [[ "$line" != *"="* ]]; then
+				echo "WARNING: ignoring malformed line in $env_file (expected KEY=VALUE)" >&2
+				continue
+			fi
+			key="${line%%=*}"
+			value="${line#*=}"
+			key="${key#"${key%%[![:space:]]*}"}"
+			key="${key%"${key##*[![:space:]]}"}"
+			# Keys with dots (e.g. Logging__LogLevel__Microsoft.AspNetCore) cannot be
+			# exported by bash; compose reads them from the env_file directly.
+			[[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+			if [[ ( "$value" == \"*\" && "$value" == *\" ) || ( "$value" == \'*\' && "$value" == *\' ) ]]; then
+				value="${value:1:-1}"
+			fi
+			export "$key=$value"
+		done < "$env_file"
+	done
 }
 
 start() {
-	load_env_file
+	load_env_files
 
 	if [[ -z "${AdminAuth__PasswordHash:-}" ]]; then
 		echo "ERROR: AdminAuth__PasswordHash is not set." >&2
 		echo "Generate one with:" >&2
 		echo "  dotnet run --project ./sekura -- hash-admin-password --password '<password>'" >&2
-		echo "Then export it or add it to $ENV_FILE" >&2
+		echo "Then export it or add it to .env.prod (copy from .env.template)" >&2
 		exit 1
 	fi
 
 	if [[ -z "${Encryption__Passphrase:-}" ]]; then
 		echo "ERROR: Encryption__Passphrase is not set (minimum 15 characters)." >&2
-		echo "Export it or add it to $ENV_FILE" >&2
+		echo "Export it or add it to .env.prod (copy from .env.template)" >&2
 		exit 1
 	fi
 

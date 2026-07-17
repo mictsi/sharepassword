@@ -1,5 +1,5 @@
 param(
-	[string]$SettingsFile = "./sekura/appsettings.json",
+	[string]$EnvFile = "./.env.prod",
 	[string]$OutputDirectory = "./artifacts/docker",
 	[string]$ServiceName = "sekura",
 	[string]$ContainerName = "sekura",
@@ -42,79 +42,39 @@ function Get-RepoPath {
 	return $resolvedPath
 }
 
-function ConvertTo-AppSettingValue {
+# Env file lines are KEY=VALUE and read literally (no expansion), so '$' in
+# password hashes needs no quoting or escaping. Optional surrounding single
+# or double quotes are stripped.
+function ConvertFrom-DotEnvFile {
 	param(
-		[AllowNull()]
-		[object]$Value
-	)
-
-	if ($null -eq $Value) {
-		return ""
-	}
-
-	if ($Value -is [bool]) {
-		if ($Value) {
-			return "true"
-		}
-
-		return "false"
-	}
-
-	if ($Value -is [string]) {
-		return $Value
-	}
-
-	if ($Value -is [ValueType]) {
-		return [Convert]::ToString($Value, [Globalization.CultureInfo]::InvariantCulture)
-	}
-
-	return ($Value | ConvertTo-Json -Compress -Depth 64)
-}
-
-function Add-FlattenedJsonSettings {
-	param(
-		[AllowNull()]
-		[object]$Source,
-
-		[string]$Prefix = "",
-
 		[Parameter(Mandatory = $true)]
-		[System.Collections.Specialized.OrderedDictionary]$Settings
+		[string]$Path
 	)
 
-	if ($null -eq $Source) {
-		if (-not [string]::IsNullOrWhiteSpace($Prefix)) {
-			$Settings[$Prefix] = ""
+	$settings = [ordered]@{}
+	foreach ($line in Get-Content -Path $Path) {
+		$trimmed = $line.Trim()
+		if ($trimmed -eq "" -or $trimmed.StartsWith("#")) {
+			continue
 		}
 
-		return
-	}
-
-	if ($Source -is [pscustomobject]) {
-		foreach ($property in $Source.PSObject.Properties) {
-			$key = if ([string]::IsNullOrWhiteSpace($Prefix)) { $property.Name } else { "${Prefix}__$($property.Name)" }
-			Add-FlattenedJsonSettings -Source $property.Value -Prefix $key -Settings $Settings
+		$separatorIndex = $trimmed.IndexOf("=")
+		if ($separatorIndex -lt 1) {
+			Write-Warning "Ignoring malformed line in '$Path' (expected KEY=VALUE): $trimmed"
+			continue
 		}
 
-		return
-	}
-
-	if (($Source -is [System.Collections.IEnumerable]) -and -not ($Source -is [string])) {
-		$index = 0
-		foreach ($item in $Source) {
-			$key = "${Prefix}__$index"
-			Add-FlattenedJsonSettings -Source $item -Prefix $key -Settings $Settings
-			$index++
+		$key = $trimmed.Substring(0, $separatorIndex).Trim()
+		$value = $trimmed.Substring($separatorIndex + 1)
+		if (($value.StartsWith('"') -and $value.EndsWith('"') -and $value.Length -ge 2) -or
+			($value.StartsWith("'") -and $value.EndsWith("'") -and $value.Length -ge 2)) {
+			$value = $value.Substring(1, $value.Length - 2)
 		}
 
-		return
+		$settings[$key] = $value
 	}
 
-	if ([string]::IsNullOrWhiteSpace($Prefix)) {
-		throw "The settings file root must be a JSON object."
-	}
-
-	$Settings[$Prefix] = ConvertTo-AppSettingValue -Value $Source
+	return $settings
 }
 
 function ConvertTo-YamlSingleQuotedScalar {
@@ -194,13 +154,11 @@ if ($HostPort -le 0) {
 	throw "HostPort must be greater than 0."
 }
 
-$settingsPath = Get-RepoPath -Path $SettingsFile
+$settingsPath = Get-RepoPath -Path $EnvFile
 $outputPath = Get-RepoPath -Path $OutputDirectory -AllowMissing
 
-Write-Host "Loading and flattening settings from '$settingsPath'..." -ForegroundColor Cyan
-$settingsJson = Get-Content -Path $settingsPath -Raw | ConvertFrom-Json
-$flattenedSettings = [ordered]@{}
-Add-FlattenedJsonSettings -Source $settingsJson -Settings $flattenedSettings
+Write-Host "Loading settings from '$settingsPath'..." -ForegroundColor Cyan
+$flattenedSettings = ConvertFrom-DotEnvFile -Path $settingsPath
 
 $dockerSettings = [ordered]@{}
 foreach ($entry in $flattenedSettings.GetEnumerator()) {
@@ -231,7 +189,7 @@ $httpsEndpointKeys = @(
 )
 
 if ($httpsEndpointKeys.Count -gt 0) {
-	Write-Warning "HTTPS Kestrel endpoint settings were preserved from appsettings.json. If the container is not mounting certificates, remove or override those settings before using the generated compose file."
+	Write-Warning "HTTPS Kestrel endpoint settings were preserved from the env file. If the container is not mounting certificates, remove or override those settings before using the generated compose file."
 }
 
 New-Item -Path $outputPath -ItemType Directory -Force | Out-Null
@@ -251,7 +209,7 @@ $startScriptLines.Add("#!/usr/bin/env bash")
 $startScriptLines.Add("set -euo pipefail")
 $startScriptLines.Add("")
 $startScriptLines.Add("# Generated from $settingsPath on $generatedTimestamp.")
-$startScriptLines.Add("# Contains literal values from appsettings.json. Review before sharing.")
+$startScriptLines.Add("# Contains literal values from the env file. Review before sharing.")
 $startScriptLines.Add('SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"')
 $startScriptLines.Add('REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"')
 $startScriptLines.Add("")
@@ -294,8 +252,8 @@ $startScriptLines.Add('exec docker "${docker_args[@]}"')
 
 $composeLines = [System.Collections.Generic.List[string]]::new()
 $composeLines.Add("# Generated from $settingsPath on $generatedTimestamp.")
-$composeLines.Add("# Contains literal values from appsettings.json. Review before sharing.")
-$composeLines.Add(("# Runtime environment variables are intentionally omitted here. Use ./{0} to run the container with flattened settings from appsettings.json." -f (ConvertTo-ComposePath -Path $startScriptRepoRelativePath)))
+$composeLines.Add("# Contains literal values from the env file. Review before sharing.")
+$composeLines.Add(("# Runtime environment variables are intentionally omitted here. Use ./{0} to run the container with settings from the env file." -f (ConvertTo-ComposePath -Path $startScriptRepoRelativePath)))
 $composeLines.Add("services:")
 $composeLines.Add(("  {0}:" -f $ServiceName))
 if (-not [string]::IsNullOrWhiteSpace($ContainerName)) {

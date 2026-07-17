@@ -12,7 +12,7 @@ Set strong values before deployment:
 
 Recommendations:
 
-- Do not store production secrets in source-controlled `appsettings*.json`.
+- All configuration lives in `.env` files (`Section__Key=value`). Only `.env.template` belongs in source control — never commit `.env.prod`/`.env.dev` once secrets are filled in.
 - Generate `AdminAuth:PasswordHash` with `./scripts/new-admin-password-hash.ps1`.
 - The app fails startup if `AdminAuth:PasswordHash` is missing or invalid.
 - Prefer environment variables or secret stores.
@@ -20,46 +20,38 @@ Recommendations:
 
 ## 2) Network and TLS
 
-For production, enable HTTPS redirection and bind HTTPS endpoint:
+For production, enable HTTPS redirection and bind the listen URL:
 
-```json
-"Application": {
-  "EnableHttpsRedirection": true
-}
+```dotenv
+Application__EnableHttpsRedirection=true
 ```
 
-Set Kestrel endpoints behind reverse proxy or directly with TLS certs.
+Bind the endpoint behind a reverse proxy or directly with TLS certs. Example HTTP-only (reverse proxy handles TLS):
 
-Example HTTP-only (reverse proxy handles TLS):
-
-```json
-"Kestrel": {
-  "Endpoints": {
-    "Http": {
-      "Url": "http://0.0.0.0:5099"
-    }
-  }
-}
+```dotenv
+ASPNETCORE_URLS=http://0.0.0.0:5099
 ```
 
-If the app is hosted under a sub-URI on the web server, configure `Application:PathBase`.
+Leave `ASPNETCORE_URLS` unset for containers (the image binds port 8080) and App Service (the deploy script sets it).
+
+If the app is hosted under a sub-URI on the web server, configure `Application__PathBase`.
 
 Examples:
 
-- Root deployment: `"PathBase": "/"`
-- Subpath deployment: `"PathBase": "/sekura"`
+- Root deployment: `Application__PathBase=/`
+- Subpath deployment: `Application__PathBase=/sekura`
 
-Configure `Application:TimeZoneId` if admin and recipient pages should display times in a specific timezone instead of `UTC`.
+Configure `Application__TimeZoneId` if admin and recipient pages should display times in a specific timezone instead of `UTC`.
 
 Examples:
 
-- IANA: `"TimeZoneId": "Europe/Stockholm"`
-- Windows: `"TimeZoneId": "W. Europe Standard Time"`
+- IANA: `Application__TimeZoneId=Europe/Stockholm`
+- Windows: `Application__TimeZoneId=W. Europe Standard Time`
 
 Authentication cookies remain session-only, so closing the browser ends the session. The default idle timeout is 60 minutes and can be configured with:
 
-- `Application:AuthenticationSessionTimeoutMinutes`
-- `Application:AuthenticationSlidingExpiration`
+- `Application__AuthenticationSessionTimeoutMinutes`
+- `Application__AuthenticationSlidingExpiration`
 
 If exposing directly on internet, terminate TLS at app or trusted ingress and restrict inbound ports.
 
@@ -67,12 +59,10 @@ If exposing directly on internet, terminate TLS at app or trusted ingress and re
 
 When the app runs behind a reverse proxy, enable forwarded-header processing so audit logs record the real client IP and IP-based checks (such as the local login fallback) see the actual caller instead of the proxy:
 
-```json
-"ForwardedHeaders": {
-  "Enabled": true,
-  "KnownProxies": [ "127.0.0.1" ],
-  "KnownNetworks": [ "10.0.0.0/8" ]
-}
+```dotenv
+ForwardedHeaders__Enabled=true
+ForwardedHeaders__KnownProxies__0=127.0.0.1
+ForwardedHeaders__KnownNetworks__0=10.0.0.0/8
 ```
 
 `X-Forwarded-For` and `X-Forwarded-Proto` are only accepted from the listed proxies/networks; startup fails when the section is enabled without any trusted source configured.
@@ -89,13 +79,11 @@ When OIDC is enabled, `OidcAuth:LocalLoginFallback` controls whether the built-i
 
 Local users can complete second-factor sign-in with a passkey instead of an authenticator code once the feature is configured:
 
-```json
-"Passkey": {
-  "Enabled": true,
-  "ServerDomain": "sekura.example.com",
-  "ServerName": "Sekura",
-  "Origins": [ "https://sekura.example.com" ]
-}
+```dotenv
+Passkey__Enabled=true
+Passkey__ServerDomain=sekura.example.com
+Passkey__ServerName=Sekura
+Passkey__Origins__0=https://sekura.example.com
 ```
 
 - `ServerDomain` is the WebAuthn relying-party ID (the site's domain). Registered passkeys are bound to it — changing the domain invalidates every passkey.
@@ -108,12 +96,10 @@ Local users can complete second-factor sign-in with a passkey instead of an auth
 
 Failed username/password sign-ins are throttled per account. Defaults (5 attempts, 15-minute pause, 60-minute failure window) can be tuned:
 
-```json
-"LoginThrottle": {
-  "FailedAttemptLimit": 5,
-  "PauseMinutes": 15,
-  "FailureWindowMinutes": 60
-}
+```dotenv
+LoginThrottle__FailedAttemptLimit=5
+LoginThrottle__PauseMinutes=15
+LoginThrottle__FailureWindowMinutes=60
 ```
 
 Throttle events appear in the audit log as `login.paused`.
@@ -122,80 +108,60 @@ Throttle events appear in the audit log as `login.paused`.
 
 Set:
 
-- `Storage:Backend`: `sqlite`, `sqlserver`, `postgresql`, or `azure`
+- `Storage__Backend`: `sqlite`, `sqlserver`, `postgresql`, or `azure`
 
 ### SQLite
 
 Use only for small/single-instance deployments. SQLite startup migrations should run with a single application instance; if a migration is interrupted, clear the EF Core `__EFMigrationsLock` table before retrying:
 
-```json
-"Storage": {
-  "Backend": "sqlite"
-},
-"SqliteStorage": {
-  "ConnectionString": "Data Source=/var/lib/sekura/sekura.db",
-  "ApplyMigrationsOnStartup": true
-}
+```dotenv
+Storage__Backend=sqlite
+SqliteStorage__ConnectionString=Data Source=/var/lib/sekura/sekura.db
+SqliteStorage__ApplyMigrationsOnStartup=true
 ```
 
 ### SQL Server
 
 Use encrypted transport and managed identity/least privilege where possible:
 
-```json
-"Storage": {
-  "Backend": "sqlserver"
-},
-"SqlServerStorage": {
-  "ConnectionString": "Server=tcp:sql.example.com,1433;Database=Sekura;Encrypt=True;TrustServerCertificate=False;User ID=...;Password=...",
-  "ApplyMigrationsOnStartup": true
-}
+```dotenv
+Storage__Backend=sqlserver
+SqlServerStorage__ConnectionString=Server=tcp:sql.example.com,1433;Database=Sekura;Encrypt=True;TrustServerCertificate=False;User ID=...;Password=...
+SqlServerStorage__ApplyMigrationsOnStartup=true
 ```
 
 ### PostgreSQL
 
 Require SSL mode and least-privilege DB user:
 
-```json
-"Storage": {
-  "Backend": "postgresql"
-},
-"PostgresqlStorage": {
-  "ConnectionString": "Host=db.example.com;Port=5432;Database=sekura;Username=sekura_app;Password=...;SSL Mode=Require;Trust Server Certificate=false",
-  "ApplyMigrationsOnStartup": true
-}
+```dotenv
+Storage__Backend=postgresql
+PostgresqlStorage__ConnectionString=Host=db.example.com;Port=5432;Database=sekura;Username=sekura_app;Password=...;SSL Mode=Require;Trust Server Certificate=false
+PostgresqlStorage__ApplyMigrationsOnStartup=true
 ```
 
 ### Azure
 
 For the Azure backend, shares are stored in Key Vault and audit logs are stored in Azure Table Storage:
 
-```json
-"Storage": {
-  "Backend": "azure"
-},
-"AzureStorage": {
-  "KeyVault": {
-    "VaultUri": "https://sekura.vault.azure.net/",
-    "TenantId": "<tenant-id>",
-    "ClientId": "<client-id>",
-    "ClientSecret": "<client-secret>",
-    "SecretPrefix": "sekura"
-  },
-  "TableAudit": {
-    "ServiceSasUrl": "https://account.table.core.windows.net/?<sas>",
-    "TableName": "auditlogs",
-    "PartitionKey": "audit"
-  }
-}
+```dotenv
+Storage__Backend=azure
+AzureStorage__KeyVault__VaultUri=https://sekura.vault.azure.net/
+AzureStorage__KeyVault__TenantId=<tenant-id>
+AzureStorage__KeyVault__ClientId=<client-id>
+AzureStorage__KeyVault__ClientSecret=<client-secret>
+AzureStorage__KeyVault__SecretPrefix=sekura
+AzureStorage__TableAudit__ServiceSasUrl=https://account.table.core.windows.net/?<sas>
+AzureStorage__TableAudit__TableName=auditlogs
+AzureStorage__TableAudit__PartitionKey=audit
 ```
 
-Database-backed platform features such as local user management, editable mail configuration, runtime timezone settings, and persisted KPI counters are only available when `Storage:Backend` is `sqlite`, `sqlserver`, or `postgresql`.
+Database-backed platform features such as local user management, editable mail configuration, runtime timezone settings, and persisted KPI counters are only available when `Storage__Backend` is `sqlite`, `sqlserver`, or `postgresql`.
 
 For the database-backed storage modes, the app now retries transient database failures before returning an error. Configure:
 
-- `DatabaseResilience:MaxAttempts`: total database attempts before failing startup checks or a request. Default `3`.
-- `DatabaseResilience:DelayMilliseconds`: wait time between attempts. Default `1000`.
+- `DatabaseResilience__MaxAttempts`: total database attempts before failing startup checks or a request. Default `3`.
+- `DatabaseResilience__DelayMilliseconds`: wait time between attempts. Default `1000`.
 
 The `/health` endpoint performs a live database connectivity probe for `sqlite`, `sqlserver`, and `postgresql`.
 
@@ -203,38 +169,35 @@ The `/health` endpoint performs a live database connectivity probe for `sqlite`,
 
 Security-related retention:
 
-- `Share:DefaultExpiryHours`: keep short (example `1`–`4`).
-- `Share:CleanupIntervalSeconds`: low enough to clear expired items quickly (example `30`–`60`).
+- `Share__DefaultExpiryHours`: keep short (example `1`–`4`).
+- `Share__CleanupIntervalSeconds`: low enough to clear expired items quickly (example `30`–`60`).
 
 Example:
 
-```json
-"Share": {
-  "DefaultExpiryHours": 2,
-  "CleanupIntervalSeconds": 30
-}
+```dotenv
+Share__DefaultExpiryHours=2
+Share__CleanupIntervalSeconds=30
 ```
 
 ## 5) Mail notifications
 
 Configure the `Mail` section if administrators and share creators should receive an email when a share is opened:
 
-```json
-"Mail": {
-  "SmtpHost": "smtp.example.com",
-  "Port": 587,
-  "Username": "sekura",
-  "Password": "<secret>",
-  "UseTls": true,
-  "SenderEmail": "sekura@example.com",
-  "SenderDisplayName": "Sekura",
-  "AdminNotificationRecipients": "admin1@example.com;admin2@example.com",
-  "NotifyAdminsOnShareAccess": true,
-  "NotifyCreatorOnShareAccess": true,
-  "ShareAccessedSubjectTemplate": "Share used: {{SharedUsername}} for {{RecipientEmail}}",
-  "ShareAccessedBodyTemplate": "A secure share has been used.\n\nShare ID: {{ShareId}}\nCreated by: {{CreatedBy}}\nRecipient: {{RecipientEmail}}\nShared username: {{SharedUsername}}\nAccessed by: {{AccessedBy}}\nAccessed at: {{AccessedAt}}\nExpires at: {{ExpiresAt}}\nTime zone: {{TimeZoneId}}"
-}
+```dotenv
+Mail__SmtpHost=smtp.example.com
+Mail__Port=587
+Mail__Username=sekura
+Mail__Password=<secret>
+Mail__UseTls=true
+Mail__SenderEmail=sekura@example.com
+Mail__SenderDisplayName=Sekura
+Mail__AdminNotificationRecipients=admin1@example.com;admin2@example.com
+Mail__NotifyAdminsOnShareAccess=true
+Mail__NotifyCreatorOnShareAccess=true
+Mail__ShareAccessedSubjectTemplate=Share used: {{SharedUsername}} for {{RecipientEmail}}
 ```
+
+The multi-line `Mail__ShareAccessedBodyTemplate` cannot be represented in a `.env` file; the built-in default applies, and both templates are editable in the admin mail configuration UI.
 
 The SMTP password is encrypted at rest with `Encryption:Passphrase` when stored in a database backend, and the admin mail form never echoes it back — leave the password field blank to keep the stored value. Existing plaintext values are encrypted automatically at startup.
 
@@ -257,35 +220,20 @@ Template placeholders:
 - Store logs centrally and monitor audit events (`admin.login`, `share.access`, `share.create`, `share.revoke`).
 - Back up database securely (encrypted backups).
 
-## 7) Example production override file
+## 7) Example production configuration
 
-Create environment-specific config (for example `appsettings.Production.json`):
+Create `.env.prod` from the template (`cp .env.template .env.prod`) and adjust, for example:
 
-```json
-{
-  "Application": {
-    "EnableHttpsRedirection": true,
-    "TimeZoneId": "UTC"
-  },
-  "Kestrel": {
-    "Endpoints": {
-      "Http": {
-        "Url": "http://0.0.0.0:5099"
-      }
-    }
-  },
-  "Storage": {
-    "Backend": "postgresql"
-  },
-  "PostgresqlStorage": {
-    "ConnectionString": "Host=db.example.com;Port=5432;Database=sekura;Username=sekura_app;Password=...;SSL Mode=Require;Trust Server Certificate=false",
-    "ApplyMigrationsOnStartup": true
-  },
-  "Share": {
-    "DefaultExpiryHours": 2,
-    "CleanupIntervalSeconds": 30
-  }
-}
+```dotenv
+ASPNETCORE_ENVIRONMENT=Production
+Application__EnableHttpsRedirection=true
+Application__TimeZoneId=UTC
+ASPNETCORE_URLS=http://0.0.0.0:5099
+Storage__Backend=postgresql
+PostgresqlStorage__ConnectionString=Host=db.example.com;Port=5432;Database=sekura;Username=sekura_app;Password=...;SSL Mode=Require;Trust Server Certificate=false
+PostgresqlStorage__ApplyMigrationsOnStartup=true
+Share__DefaultExpiryHours=2
+Share__CleanupIntervalSeconds=30
 ```
 
-Keep secrets out of this file when possible and inject through environment/secret store.
+The file is read by docker compose (`env_file`), the start scripts, and `scripts/deploy-appservice.ps1`. Keep secrets out of source control; inject the most sensitive values through the environment or a secret store when possible.

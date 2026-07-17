@@ -10,8 +10,12 @@ services:
     volumes:
       - sekura-data:/app/data
     env_file:
-      # Full app configuration (generate with scripts/generate-env-file.sh).
-      # Values are used as-is; no variable interpolation is applied.
+      # Full app configuration (copy .env.template to .env.prod and fill in
+      # secrets). Values are used as-is; no variable interpolation is applied.
+      # .env.docker is a legacy override kept for compatibility; its values
+      # win over .env.prod.
+      - path: .env.prod
+        required: false
       - path: .env.docker
         required: false
     environment:

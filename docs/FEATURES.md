@@ -114,7 +114,7 @@ Supporting behavior:
 - **Mail configuration UI** — SMTP settings and notification templates managed from the admin console.
 - **Application settings UI** — runtime timezone and per-share/-request failed-attempt pause controls.
 - **Admin password hash CLI / script** — `hash-admin-password` command and `scripts/new-admin-password-hash.ps1`.
-- **Docker lifecycle** — `start-docker.sh` (start/stop/clean) driving `docker-compose.yml`, with env-file generation from appsettings templates.
+- **Docker lifecycle** — `start-docker.sh` (start/stop/clean) driving `docker-compose.yml`, configured from `.env.prod` (copied from `.env.template`).
 - **Azure automation** — `scripts/provision-azure.ps1` (resource group, storage + audit table, Key Vault, app registration) and `scripts/deploy-appservice.ps1` (App Service plan/web app + settings + deploy).
 
 ---

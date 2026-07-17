@@ -44,23 +44,28 @@ chmod +x ./start-linux.sh
 ./start-linux.sh
 ```
 
-By default, scripts use URL/port from `sekura/appsettings*.json` (development default: `Kestrel:Endpoints:Https:Url`).
+By default, the start scripts load `.env.dev` (create it with `cp .env.template .env.dev`) and use its `ASPNETCORE_URLS` for the listen URL.
 
 Optional overrides:
 
-- Windows: `./start-win.ps1 -ProjectPath ./sekura/sekura.csproj -Urls https://localhost:7099 -Configuration Release -Environment Development`
-- Linux: `./start-linux.sh ./sekura/sekura.csproj https://localhost:7099 Release Development`
+- Windows: `./start-win.ps1 -EnvFile .env.prod -Urls https://localhost:7099 -Configuration Release`
+- Linux: `./start-linux.sh .env.prod https://localhost:7099 Release`
 
 ## Configuration
 
-Primary settings live in:
+All settings live in `.env` files using the ASP.NET environment format (`Section__Key=value`, arrays as `Section__0`):
 
-- `sekura/appsettings.json`
-- `sekura/appsettings.Development.json`
+- `.env.template` — checked-in template with every key
+- `.env.dev` — development values (loaded by the start scripts)
+- `.env.prod` — production values (docker compose, App Service deploy)
+
+`.env.dev` and `.env.prod` are gitignored; never commit them once secrets are filled in.
 
 Production hardening guide: `sekura/CONFIGURATION.md`
 
 ### Configuration reference
+
+Keys below are written as configuration paths (`Section:Key`); in `.env` files replace `:` with `__` (for example `Application:Name` → `Application__Name`).
 
 - `Application:Name`: app name shown in config/operations.
 - `Application:EnableHttpsRedirection`: set `true` when HTTPS endpoint/certificate is configured.
@@ -269,9 +274,9 @@ For array values (for example scopes), use indexed variables:
 - `OidcAuth__AdminGroups__0=<entra-group-id-for-admins>`
 - `OidcAuth__UserGroups__0=<entra-group-id-for-users>`
 
-#### Generate Docker env + compose from appsettings
+#### Generate Docker start script + compose from the env file
 
-To generate Docker-friendly flattened settings from the current `appsettings.json`, run:
+To generate Docker assets from the current `.env.prod` (override with `-EnvFile`), run:
 
 ```powershell
 pwsh ./scripts/generate-docker-assets.ps1
@@ -282,11 +287,11 @@ The generator writes these files under `artifacts/docker/`:
 - `start.sh`
 - `docker-compose.generated.yml`
 
-The generated files contain literal values from `appsettings.json`, including any configured secrets, so review them before sharing.
+The generated files contain literal values from the env file, including any configured secrets, so review them before sharing.
 
 The generator preserves the current application settings and applies container-safe overrides for `Application__EnableHttpsRedirection`, `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_URLS`, `Kestrel__Endpoints__Http__Url`, and the SQLite connection string when `Storage__Backend=sqlite`.
 
-The generated Compose file intentionally omits the flattened environment variables. Use the generated `start.sh` launcher to build the image and run the container with `docker run --env ...` arguments derived from `appsettings.json`.
+The generated Compose file intentionally omits the environment variables. Use the generated `start.sh` launcher to build the image and run the container with `docker run --env ...` arguments derived from the env file.
 
 Start the app with the generated launcher:
 
